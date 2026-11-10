@@ -414,7 +414,7 @@ void main() {
   setTimeout(() => { tip.style.opacity = '0'; }, 3200);
 
   function resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 1);
     const w = Math.floor(innerWidth * dpr), h = Math.floor(innerHeight * dpr);
     if (cvs.width !== w || cvs.height !== h) {
       cvs.width = w; cvs.height = h;
@@ -424,7 +424,11 @@ void main() {
   addEventListener('resize', resize);
   resize();
 
+  let lastPaint = 0;
   function frame(now) {
+    requestAnimationFrame(frame);
+    if (now - lastPaint < 33) return;
+    lastPaint = now;
     const dt = Math.min((now - last) / 1000, 0.05);
     last = now;
     if (!paused) tAcc += dt;
@@ -444,7 +448,6 @@ void main() {
     gl.uniform4fv(U.uRipples, ripples);
 
     gl.drawArrays(gl.TRIANGLES, 0, 3);
-    requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 })();
