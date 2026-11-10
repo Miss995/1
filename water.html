@@ -216,7 +216,9 @@ float rippleH(vec2 uv, float t) {
         float ring  = exp(-pow((dist - front) * 3.0, 2.0));
         float fall  = exp(-age * 1.55);
         // 波长随距离缓慢拉长（用乘法不用除法，避免把一个环拉成大坑）
-        float phase = (dist - front) * 62.0;
+        // 频率随年龄衰减：刚出来密，越老越疏（真实水面涟漪的时间演化）
+        float freq  = 62.0 * exp(-age * 0.85);
+        float phase = (dist - front) * freq;
         h += sin(phase) * ring * fall * r.w;
         // 按下去的那一下中心也鼓一下
         h += exp(-pow(dist * 26.0, 2.0)) * exp(-age * 6.0) * r.w * 1.6;
