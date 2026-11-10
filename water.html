@@ -212,7 +212,7 @@ float rippleH(vec2 uv, float t) {
         vec2 d = uv - r.xy;
         d.x *= aspect;
         float dist = length(d);
-        float front = age * 0.45;
+        float front = age * 0.28;
         // ★ 单边包络：波前内侧 0.10 之外归零（力只往外推，后面早该平了）
         //   外侧用高斯收，只留波前那一圈在动
         float tail = smoothstep(front - 0.10, front, dist);
