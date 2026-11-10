@@ -212,9 +212,9 @@ float rippleH(vec2 uv, float t) {
         vec2 d = uv - r.xy;
         d.x *= aspect;
         float dist = length(d);
-        float front = age * 0.20;
+        float front = age * 0.40;
         float ring  = exp(-pow((dist - front) * 1.8, 2.0));
-        float fall  = exp(-age * 0.75);
+        float fall  = exp(-age * 1.00);
         // 波长随距离缓慢拉长（用乘法不用除法，避免把一个环拉成大坑）
         // 频率随年龄衰减：刚出来密，越老越疏（真实水面涟漪的时间演化）
         float freq  = 62.0 * exp(-age * 0.85);
@@ -238,7 +238,8 @@ void main() {
     float h0 = waterHeight(p, t);
     float hx = waterHeight(p + vec2(e, 0.0), t);
     float hy = waterHeight(p + vec2(0.0, e), t);
-    vec2 grad = vec2(hx - h0, hy - h0) / e;
+    // ★ 暂时关掉底层大浪，单独看涟漪（要恢复就把下一行换成 vec2(hx-h0, hy-h0)/e）
+    vec2 grad = vec2(0.0);
 
     // 涟漪的梯度（uv 空间）
     float re = 0.0020;
