@@ -247,16 +247,15 @@ void main() {
     vec2 off = grad * amp * uRefr * 0.55 + rgrad * uRip * 0.020;
 
     // 三通道色散
-    vec3 colR = under(uv + off * 1.07);
+    vec3 colR = under(uv + off * 1.02);
     vec3 colG = under(uv + off);
-    vec3 colB = under(uv + off * 0.90);
+    vec3 colB = under(uv + off * 0.98);
     vec3 col = vec3(colR.r, colG.g, colB.b);
 
     // 水色：越"深"越蓝，随大浪有起伏
     float depthCue = 0.45 + 0.30 * h0;
     vec3 waterCol = vec3(0.055, 0.235, 0.330);
     col = mix(col, col * waterCol * 3.0, uTint * 0.34 * depthCue);
-    col += waterCol * uTint * 0.10;
 
     // 法线
     vec3 n = normalize(vec3(-(grad * amp * 5.0 + rgrad * uRip * 0.55), 1.0));
