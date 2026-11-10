@@ -1,257 +1,453 @@
-<!doctype html>
-<html lang="zh-CN">
+<!DOCTYPE html>
+<html lang="zh">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>水润</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#0a1520">
+<title>水面 · 摸一下</title>
 <style>
-:root{
-  --wet: 0;        /* 0=干玻璃 1=水润 */
-  --flow: 1;       /* 流动速度倍率 */
-}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{
-  margin:0;height:100vh;overflow:hidden;background:#0d0f12;color:#e8e6e3;
-  font-family:-apple-system,"PingFang SC",sans-serif;
-}
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; padding:0; height:100%; background:#0a1520; overflow:hidden;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    touch-action: none; overscroll-behavior: none; }
+  #c { display:block; width:100vw; height:100vh; }
 
-/* ---- 背景彩色块，专门用来“透出来” ---- */
-.blob{position:fixed;border-radius:50%;filter:blur(48px);pointer-events:none}
-.b1{width:300px;height:300px;background:#ff6f3c;top:-70px;left:-80px;opacity:.85}
-.b2{width:340px;height:340px;background:#2f7bff;bottom:-40px;right:-120px;opacity:.7}
-.b3{width:260px;height:260px;background:#19c37d;top:36%;left:48%;opacity:.55}
-.b4{width:220px;height:220px;background:#ff4fa3;top:52%;left:-60px;opacity:.5}
+  #panel {
+    position:fixed; left:12px; right:12px; bottom:12px;
+    background: rgba(12,22,32,.72);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    backdrop-filter: blur(18px) saturate(140%);
+    border:1px solid rgba(160,210,255,.16);
+    border-radius:18px;
+    color:#cfe4f5; font-size:12px;
+    padding:10px 14px 12px;
+    max-height:46vh; overflow-y:auto;
+    transition: transform .25s ease, opacity .25s ease;
+    box-shadow: 0 10px 40px rgba(0,0,0,.5);
+  }
+  #panel.hide { transform: translateY(120%); opacity:0; pointer-events:none; }
 
-/* ---- 假聊天 ---- */
-.chat{position:relative;z-index:1;padding:16px 14px 170px;display:flex;flex-direction:column;gap:12px}
-.row{display:flex}
-.row.me{justify-content:flex-end}
-.bubble{max-width:76%;padding:10px 13px;border-radius:16px;font-size:14px;line-height:1.55;background:#2b3038;color:#e6e2dd}
-.row.me .bubble{background:linear-gradient(160deg,#ffa062,#f2782f);color:#2a1400;border-bottom-right-radius:6px}
-.row:not(.me) .bubble{border-bottom-left-radius:6px}
+  .hd { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .hd b { font-size:13px; letter-spacing:.06em; color:#e6f2ff; font-weight:600; }
+  .hd span { opacity:.55; font-size:11px; }
 
-/* ============ 水润输入框 ============ */
-.inputwrap{
-  position:fixed;left:0;right:0;bottom:0;z-index:10;
-  padding:0 14px 16px;
-  transition:bottom .3s cubic-bezier(.2,.8,.2,1);
-}
-body.panel-open .inputwrap{bottom:190px}
+  .row { display:flex; align-items:center; gap:10px; margin:7px 0; }
+  .row label { flex:0 0 62px; opacity:.72; font-size:11.5px; }
+  .row input[type=range] { flex:1; -webkit-appearance:none; height:22px; background:transparent; }
+  .row input[type=range]::-webkit-slider-runnable-track {
+    height:3px; border-radius:2px;
+    background: linear-gradient(90deg, rgba(120,190,255,.75), rgba(120,190,255,.18));
+  }
+  .row input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none; width:15px; height:15px; margin-top:-6px;
+    border-radius:50%; background:#bfe1ff;
+    box-shadow:0 0 10px rgba(140,200,255,.75), 0 1px 3px rgba(0,0,0,.5);
+  }
+  .row .val { flex:0 0 34px; text-align:right; font-variant-numeric: tabular-nums; opacity:.85; font-size:11px; }
 
-.panel{
-  position:relative;
-  display:flex;align-items:center;gap:10px;
-  min-height:54px;padding:8px 12px;
+  .btns { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  button {
+    flex:1 1 auto; min-width:70px;
+    background: rgba(120,190,255,.10);
+    border:1px solid rgba(140,200,255,.24);
+    color:#cfe4f5; border-radius:11px; padding:8px 10px;
+    font-size:11.5px; font-family:inherit; cursor:pointer;
+  }
+  button:active { background: rgba(120,190,255,.26); }
+  button.on { background: rgba(120,190,255,.30); border-color: rgba(160,215,255,.55); color:#fff; }
 
-  /* 关键①：边缘不是四分之一圆，是不规则的“水囊”形，缓慢变形 */
-  border-radius:
-    calc(26px - var(--wet) * 3px) calc(30px + var(--wet) * 6px)
-    calc(28px - var(--wet) * 2px) calc(32px + var(--wet) * 4px);
-
-  /* 关键②：底下那层被“弯”了 —— 强模糊 + 拉高饱和 + 提亮 */
-  backdrop-filter: blur(calc(6px + var(--wet) * 14px))
-                   saturate(calc(140% + var(--wet) * 130%))
-                   brightness(calc(100% + var(--wet) * 16%));
-  -webkit-backdrop-filter: blur(calc(6px + var(--wet) * 14px))
-                   saturate(calc(140% + var(--wet) * 130%))
-                   brightness(calc(100% + var(--wet) * 16%));
-
-  /* 淡到几乎没有底色，全靠背后的东西撑起“水” */
-  background: rgba(180,205,230, calc(0.20 - var(--wet) * 0.13));
-
-  /* 关键③：内壁的湿边 —— 上缘一道白，下缘一道暗，中间透 */
-  box-shadow:
-    inset 0 1.5px 0 rgba(255,255,255, calc(0.18 + var(--wet) * 0.45)),
-    inset 0 -2px 6px rgba(10,30,50, calc(0.10 + var(--wet) * 0.30)),
-    inset 2px 0 8px rgba(255,255,255, calc(0.04 + var(--wet) * 0.10)),
-    0 6px 22px rgba(0,20,40, calc(0.28 + var(--wet) * 0.12));
-
-  overflow:hidden;
-  animation: breathe calc(7s / var(--flow)) ease-in-out infinite;
-}
-
-/* 上缘那道“液体表面张力”的弧光 */
-.panel::before{
-  content:"";position:absolute;inset:0;pointer-events:none;
-  border-radius:inherit;
-  background:
-    radial-gradient(120% 60% at 50% -18%,
-      rgba(255,255,255, calc(var(--wet) * 0.50)) 0%,
-      rgba(255,255,255, calc(var(--wet) * 0.10)) 42%,
-      rgba(255,255,255,0) 70%);
-  mix-blend-mode:screen;
-}
-
-/* 会流动的那道斜光 */
-.panel::after{
-  content:"";position:absolute;top:-40%;bottom:-40%;width:46%;
-  left:-60%;
-  background:linear-gradient(100deg,
-      rgba(255,255,255,0) 0%,
-      rgba(255,255,255, calc(var(--wet) * 0.20)) 48%,
-      rgba(255,255,255,0) 100%);
-  filter:blur(6px);
-  pointer-events:none;
-  animation: sweep calc(6.5s / var(--flow)) ease-in-out infinite;
-}
-
-@keyframes breathe{
-  0%,100%{border-radius:23px 36px 26px 36px}
-  33%    {border-radius:29px 25px 34px 24px}
-  66%    {border-radius:24px 33px 22px 38px}
-}
-@keyframes sweep{
-  0%  {left:-60%;opacity:0}
-  15% {opacity:1}
-  55% {left:110%;opacity:.9}
-  56% {opacity:0}
-  100%{left:110%;opacity:0}
-}
-
-/* 两颗水珠：挂在左下和右上，会缓慢“长大再收回去” */
-.drop{
-  position:absolute;border-radius:50%;pointer-events:none;
-  background:radial-gradient(circle at 32% 28%,
-    rgba(255,255,255,.95) 0%,
-    rgba(255,255,255,.45) 28%,
-    rgba(255,255,255,0) 62%);
-  filter:blur(.4px);
-  opacity:var(--wet);
-}
-.d1{width:9px;height:9px;left:16px;bottom:7px;animation:grow1 5.2s ease-in-out infinite}
-.d2{width:5px;height:5px;right:34px;top:6px;animation:grow2 6.4s ease-in-out infinite}
-.d3{width:3.5px;height:3.5px;right:16px;bottom:10px;animation:grow2 4.6s ease-in-out infinite .8s}
-@keyframes grow1{
-  0%,100%{transform:scale(.55);opacity:calc(var(--wet)*.55)}
-  50%    {transform:scale(1.25);opacity:var(--wet)}
-}
-@keyframes grow2{
-  0%,100%{transform:scale(.6);opacity:calc(var(--wet)*.45)}
-  55%    {transform:scale(1.1);opacity:calc(var(--wet)*.9)}
-}
-
-.plus{
-  width:34px;height:34px;flex:0 0 34px;border-radius:50%;
-  display:grid;place-items:center;font-size:20px;color:rgba(255,255,255,.75);
-  background:rgba(255,255,255,.10);
-  backdrop-filter:blur(4px);
-}
-.field{flex:1;font-size:15px;color:rgba(255,255,255,.62);padding:4px 2px}
-.send{
-  flex:0 0 auto;padding:9px 17px;border-radius:17px;font-size:14px;font-weight:600;
-  color:#26130a;
-  background:linear-gradient(160deg,#ffb877,#f5854a);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.55), 0 3px 10px rgba(240,120,50,.35);
-}
-
-/* ---- 控件 ---- */
-.ctl{
-  position:fixed;left:0;right:0;bottom:0;z-index:20;
-  padding:12px 18px calc(16px + env(safe-area-inset-bottom));
-  background:rgba(10,11,13,.94);
-  backdrop-filter:blur(20px);
-  border-top:1px solid rgba(255,255,255,.08);
-  transform:translateY(100%);
-  transition:transform .3s cubic-bezier(.2,.8,.2,1);
-}
-.ctl.show{transform:translateY(0)}
-.ctl h4{margin:0 0 10px;font-size:11px;font-weight:500;color:#7d7873;letter-spacing:.12em}
-.r{display:flex;align-items:center;gap:12px;margin-bottom:10px}
-.r label{font-size:12px;color:#9a948e;width:44px;flex:0 0 44px}
-.r input[type=range]{flex:1;-webkit-appearance:none;height:24px;background:transparent}
-.r input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:#2b2e33}
-.r input[type=range]::-webkit-slider-thumb{
-  -webkit-appearance:none;width:20px;height:20px;border-radius:50%;
-  background:#6fd3ff;margin-top:-8px;
-  box-shadow:0 0 0 5px rgba(111,211,255,.14);
-}
-.presets{display:flex;gap:8px;margin-top:6px}
-.presets button{
-  flex:1;padding:10px 0;border-radius:12px;border:1px solid rgba(255,255,255,.10);
-  background:rgba(255,255,255,.04);color:#c9c4bd;font-size:12.5px;
-}
-.presets button:active{background:rgba(111,211,255,.18)}
-.handle{
-  position:fixed;right:16px;bottom:92px;z-index:30;
-  padding:10px 14px;border-radius:20px;font-size:13px;
-  background:rgba(20,40,60,.75);color:#bfe8ff;
-  border:1px solid rgba(140,220,255,.28);
-  backdrop-filter:blur(14px);
-  transition:opacity .2s;
-}
-body.panel-open .handle{opacity:0;pointer-events:none}
+  #tip {
+    position:fixed; top:16px; left:0; right:0; text-align:center;
+    color:rgba(210,232,250,.55); font-size:12px; letter-spacing:.2em;
+    pointer-events:none; transition:opacity .8s;
+  }
+  #toggle {
+    position:fixed; top:12px; right:12px; z-index:5;
+    width:36px; height:36px; border-radius:50%;
+    background: rgba(12,22,32,.6); border:1px solid rgba(160,210,255,.2);
+    color:#cfe4f5; font-size:15px; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  }
 </style>
 </head>
 <body>
+<canvas id="c"></canvas>
+<div id="tip">按 一 下 水 面</div>
+<div id="toggle">≡</div>
 
-<div class="blob b1"></div><div class="blob b2"></div>
-<div class="blob b3"></div><div class="blob b4"></div>
+<div id="panel">
+  <div class="hd"><b>水面参数</b><span>摸一下试试</span></div>
 
-<div class="chat">
-  <div class="row me"><div class="bubble">小猫，你看这个玻璃</div></div>
-  <div class="row"><div class="bubble">（凑近看）嗯，会弯。</div></div>
-  <div class="row me"><div class="bubble">但是少了那种水润润的感觉</div></div>
-  <div class="row"><div class="bubble">……那你要的可能不是玻璃，是水。</div></div>
-  <div class="row me"><div class="bubble">我恍然大悟</div></div>
-  <div class="row"><div class="bubble">猫试试水囊那版。</div></div>
-  <div class="row me"><div class="bubble">要那种快滴下来的</div></div>
-  <div class="row"><div class="bubble">好，坠着。</div></div>
-</div>
+  <div class="row"><label>波纹强度</label><input id="s_amp"   type="range" min="0" max="100" value="46"><span class="val" id="v_amp">46</span></div>
+  <div class="row"><label>波纹密度</label><input id="s_scale" type="range" min="10" max="100" value="42"><span class="val" id="v_scale">42</span></div>
+  <div class="row"><label>流速</label>    <input id="s_speed" type="range" min="0" max="100" value="28"><span class="val" id="v_speed">28</span></div>
+  <div class="row"><label>折射</label>    <input id="s_refr"  type="range" min="0" max="100" value="50"><span class="val" id="v_refr">50</span></div>
+  <div class="row"><label>波光</label>    <input id="s_spec"  type="range" min="0" max="100" value="62"><span class="val" id="v_spec">62</span></div>
+  <div class="row"><label>水色</label>    <input id="s_tint"  type="range" min="0" max="100" value="55"><span class="val" id="v_tint">55</span></div>
+  <div class="row"><label>手感</label>    <input id="s_rip"   type="range" min="0" max="100" value="65"><span class="val" id="v_rip">65</span></div>
 
-<div class="inputwrap">
-  <div class="panel">
-    <div class="drop d1"></div><div class="drop d2"></div><div class="drop d3"></div>
-    <div class="plus">＋</div>
-    <div class="field">跟小猫说说话…</div>
-    <div class="send">发送</div>
+  <div class="btns">
+    <button data-bg="grid" class="on">格子底</button>
+    <button data-bg="dots">圆点底</button>
+    <button data-bg="stripes">彩条底</button>
+  </div>
+  <div class="btns">
+    <button id="b_caustics" class="on">水下光斑</button>
+    <button id="b_pause">暂停</button>
   </div>
 </div>
 
-<div class="handle" id="handle">调一下 ▴</div>
+<script id="vs" type="x-shader/x-vertex">
+attribute vec2 aPos;
+void main() { gl_Position = vec4(aPos, 0.0, 1.0); }
+</script>
 
-<div class="ctl" id="ctl">
-  <h4>WETNESS</h4>
-  <div class="r"><label>水润</label><input type="range" id="rWet" min="0" max="100" value="100"></div>
-  <div class="r"><label>流速</label><input type="range" id="rFlow" min="20" max="300" value="100"></div>
-  <div class="presets">
-    <button data-p="0">干玻璃</button>
-    <button data-p="1">水润（推荐）</button>
-    <button data-p="2">快滴下来了</button>
-  </div>
-</div>
+<script id="fs" type="x-shader/x-fragment">
+precision highp float;
+
+uniform vec2  uRes;
+uniform float uTime;
+uniform float uAmp;
+uniform float uScale;
+uniform float uSpeed;
+uniform float uRefr;
+uniform float uSpec;
+uniform float uTint;
+uniform float uBg;
+uniform float uCaustics;
+uniform float uRip;
+
+// 6 个涟漪：xy = 位置(uv 0..1)，z = 起手时间，w = 强度
+uniform vec4 uRipples[6];
+
+// ---------- 噪声 ----------
+float hash21(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+
+float vnoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    float a = hash21(i);
+    float b = hash21(i + vec2(1.0, 0.0));
+    float c = hash21(i + vec2(0.0, 1.0));
+    float d = hash21(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+float fbm(vec2 p) {
+    float v = 0.0;
+    float a = 0.52;
+    mat2 rot = mat2(0.80, 0.60, -0.60, 0.80);
+    for (int i = 0; i < 3; i++) {
+        v += a * vnoise(p);
+        p = rot * p * 2.07;
+        a *= 0.5;
+    }
+    return v;
+}
+
+// ---------- 水底 ----------
+vec3 underGrid(vec2 uv) {
+    vec3 col = mix(vec3(0.048,0.095,0.140), vec3(0.125,0.205,0.275), uv.y);
+    vec2 g = abs(fract(uv * vec2(9.0, 15.0)) - 0.5);
+    float line = smoothstep(0.455, 0.500, max(g.x, g.y));
+    col += line * vec3(0.30, 0.43, 0.53) * 0.55;
+    float r = smoothstep(0.10, 0.0, length(uv - vec2(0.24, 0.68)));
+    col += r * vec3(0.55, 0.66, 0.72) * 0.45;
+    float r2 = smoothstep(0.16, 0.0, length(uv - vec2(0.78, 0.28)));
+    col += r2 * vec3(0.42, 0.36, 0.30) * 0.50;
+    return col;
+}
+
+vec3 underDots(vec2 uv) {
+    vec3 col = mix(vec3(0.068,0.088,0.125), vec3(0.145,0.185,0.245), uv.y);
+    vec2 cell = fract(uv * vec2(11.0, 17.0)) - 0.5;
+    float d = smoothstep(0.21, 0.13, length(cell));
+    float hue = fract(uv.x * 0.9 + uv.y * 0.55);
+    vec3 dotc = mix(vec3(0.62,0.74,0.86), vec3(0.55,0.60,0.82), hue);
+    col += d * dotc * 0.58;
+    return col;
+}
+
+vec3 underStripes(vec2 uv) {
+    float s = sin(uv.x * 14.0 + uv.y * 3.0);
+    vec3 a = vec3(0.28,0.40,0.54);
+    vec3 b = vec3(0.50,0.42,0.60);
+    vec3 col = mix(a, b, s * 0.5 + 0.5) * mix(0.50, 1.0, uv.y);
+    vec2 g = abs(fract(uv * vec2(6.0, 10.0)) - 0.5);
+    float line = smoothstep(0.47, 0.50, max(g.x, g.y));
+    col += line * vec3(0.72, 0.80, 0.90) * 0.30;
+    return col;
+}
+
+vec3 under(vec2 uv) {
+    if (uBg < 0.5)      return underGrid(uv);
+    else if (uBg < 1.5) return underDots(uv);
+    else                return underStripes(uv);
+}
+
+// ---------- 高度场（p 空间，单位一致） ----------
+float waterHeight(vec2 p, float t) {
+    float h = 0.0;
+    h += fbm(p * 0.55 + vec2( t * 0.10, t * 0.06)) * 1.00;
+    h += fbm(p * 1.50 - vec2( t * 0.18,-t * 0.12)) * 0.46;
+    h += fbm(p * 3.90 + vec2(-t * 0.30, t * 0.24)) * 0.20;
+    return h;
+}
+
+// ---------- 手指按下的涟漪（uv 空间） ----------
+float rippleH(vec2 uv, float t) {
+    float h = 0.0;
+    float aspect = uRes.x / uRes.y;
+    for (int i = 0; i < 6; i++) {
+        vec4 r = uRipples[i];
+        if (r.w <= 0.001) continue;
+        float age = t - r.z;
+        if (age < 0.0 || age > 2.8) continue;
+
+        vec2 d = uv - r.xy;
+        d.x *= aspect;
+        float dist = length(d);
+        float front = age * 0.62;
+        float ring  = exp(-pow((dist - front) * 9.0, 2.0));
+        float fall  = exp(-age * 1.55);
+        h += sin((dist - front) * 40.0) * ring * fall * r.w;
+        // 按下去的那一下中心也鼓一下
+        h += exp(-pow(dist * 26.0, 2.0)) * exp(-age * 6.0) * r.w * 1.6;
+    }
+    return h;
+}
+
+void main() {
+    vec2 uv = gl_FragCoord.xy / uRes;
+    float aspect = uRes.x / uRes.y;
+
+    vec2 p = (uv - 0.5) * vec2(aspect, 1.0) * uScale;
+    float t = uTime * uSpeed;
+
+    // 大浪 + 细纹的梯度
+    float e = 0.006;
+    float h0 = waterHeight(p, t);
+    float hx = waterHeight(p + vec2(e, 0.0), t);
+    float hy = waterHeight(p + vec2(0.0, e), t);
+    vec2 grad = vec2(hx - h0, hy - h0) / e;
+
+    // 涟漪的梯度（uv 空间）
+    float re = 0.0020;
+    float r0 = rippleH(uv, uTime);
+    float rx = rippleH(uv + vec2(re, 0.0), uTime);
+    float ry = rippleH(uv + vec2(0.0, re), uTime);
+    vec2 rgrad = vec2(rx - r0, ry - r0) / re;
+
+    float amp = uAmp * 0.0075;
+    vec2 off = grad * amp * uRefr * 0.55 + rgrad * uRip * 0.020;
+
+    // 三通道色散
+    vec3 colR = under(uv + off * 1.07);
+    vec3 colG = under(uv + off);
+    vec3 colB = under(uv + off * 0.90);
+    vec3 col = vec3(colR.r, colG.g, colB.b);
+
+    // 水色：越"深"越蓝，随大浪有起伏
+    float depthCue = 0.45 + 0.30 * h0;
+    vec3 waterCol = vec3(0.055, 0.235, 0.330);
+    col = mix(col, col * waterCol * 3.0, uTint * 0.34 * depthCue);
+    col += waterCol * uTint * 0.10;
+
+    // 法线
+    vec3 n = normalize(vec3(-(grad * amp * 5.0 + rgrad * uRip * 0.55), 1.0));
+
+    // 主高光（锐）—— 波光粼粼的那一下
+    vec3 L = normalize(vec3(0.42, 0.80, 0.50));
+    float spec = pow(max(dot(n, L), 0.0), 90.0);
+    col += spec * uSpec * vec3(1.0, 0.99, 0.96) * 2.6;
+
+    // 第二道宽高光（柔）—— 水面"亮一片"的感觉
+    float spec2 = pow(max(dot(n, L), 0.0), 14.0);
+    col += spec2 * uSpec * vec3(0.45, 0.66, 0.86) * 0.55;
+
+    // 掠射补光：波纹斜面上泛的白
+    float graze = pow(1.0 - max(n.z, 0.0), 2.2);
+    col += graze * uSpec * vec3(0.62, 0.80, 0.95) * 0.85;
+
+    // 水下焦散
+    if (uCaustics > 0.5) {
+        float c1 = sin(grad.x * 7.0 + t * 1.3);
+        float c2 = sin(grad.y * 7.0 - t * 1.0);
+        float caustic = pow(abs(c1 * c2), 5.0);
+        col += caustic * vec3(0.38, 0.66, 0.76) * 0.80;
+    }
+
+    // 暗角
+    vec2 vg = uv - 0.5;
+    float vig = smoothstep(0.90, 0.18, length(vg * vec2(1.0, 0.92)));
+    col *= mix(0.50, 1.0, vig);
+
+    // 色调映射
+    col = col / (col + vec3(0.82));
+    col = pow(col, vec3(0.90));
+
+    gl_FragColor = vec4(col, 1.0);
+}
+</script>
 
 <script>
-const R = document.documentElement;
-const ctl = document.getElementById('ctl');
-const handle = document.getElementById('handle');
-handle.onclick = () => {
-  const open = ctl.classList.toggle('show');
-  document.body.classList.toggle('panel-open', open);
-};
+(function(){
+  const cvs = document.getElementById('c');
+  const gl = cvs.getContext('webgl', { antialias:false, alpha:false, powerPreference:'high-performance' })
+          || cvs.getContext('experimental-webgl');
+  if (!gl) {
+    document.body.innerHTML = '<div style="color:#cfe4f5;padding:40px;font-size:14px">这台设备不给 WebGL，看不成了。</div>';
+    return;
+  }
 
-const rWet = document.getElementById('rWet');
-const rFlow = document.getElementById('rFlow');
+  function compile(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      console.error('SHADER ERR:', gl.getShaderInfoLog(s));
+    }
+    return s;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER,   document.getElementById('vs').textContent));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, document.getElementById('fs').textContent));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    console.error('LINK ERR:', gl.getProgramInfoLog(prog));
+  }
+  gl.useProgram(prog);
 
-function apply(){
-  R.style.setProperty('--wet', (rWet.value / 100).toFixed(3));
-  R.style.setProperty('--flow', (rFlow.value / 100).toFixed(2));
-}
-[rWet, rFlow].forEach(el => el.addEventListener('input', apply));
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(prog, 'aPos');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
 
-const presets = {
-  0: [0,  100],
-  1: [100, 100],
-  2: [100, 45],
-};
-document.querySelectorAll('.presets button').forEach(b => {
-  b.onclick = () => {
-    const v = presets[b.dataset.p];
-    rWet.value = v[0]; rFlow.value = v[1];
-    apply();
-  };
-});
+  const U = {};
+  ['uRes','uTime','uAmp','uScale','uSpeed','uRefr','uSpec','uTint','uBg','uCaustics','uRip']
+    .forEach(n => U[n] = gl.getUniformLocation(prog, n));
+  U.uRipples = gl.getUniformLocation(prog, 'uRipples');
 
-apply();
+  const S = { amp:46, scale:42, speed:28, refr:50, spec:62, tint:55, rip:65, bg:0, caustics:1 };
+  let paused = false, tAcc = 0, last = performance.now();
+
+  // ---------- 涟漪（6 个槽，轮着用） ----------
+  const RIP_N = 6;
+  const ripples = new Float32Array(RIP_N * 4); // xy pos, z start, w strength
+  let ripIdx = 0, lastRipTime = 0;
+
+  function addRipple(u, v, strength) {
+    const now = tAcc;
+    if (now - lastRipTime < 0.055) return;   // 节流
+    lastRipTime = now;
+    const i = ripIdx % RIP_N;
+    ripIdx++;
+    ripples[i*4+0] = u;
+    ripples[i*4+1] = v;
+    ripples[i*4+2] = now;
+    ripples[i*4+3] = strength;
+  }
+
+  function uvFromEvent(e) {
+    const r = cvs.getBoundingClientRect();
+    return [ (e.clientX - r.left) / r.width, 1.0 - (e.clientY - r.top) / r.height ];
+  }
+
+  let down = false;
+  cvs.addEventListener('pointerdown', e => {
+    down = true;
+    const [u,v] = uvFromEvent(e);
+    addRipple(u, v, 1.0);
+    lastRipTime = 0; // 第一下不节流
+  });
+  cvs.addEventListener('pointermove', e => {
+    if (!down) return;
+    const [u,v] = uvFromEvent(e);
+    addRipple(u, v, 0.75);
+  });
+  ['pointerup','pointercancel','pointerleave'].forEach(t =>
+    cvs.addEventListener(t, () => { down = false; })
+  );
+
+  // ---------- 滑杆 ----------
+  function bind(id, key) {
+    const el = document.getElementById('s_' + id);
+    const out = document.getElementById('v_' + id);
+    const upd = () => { S[key] = +el.value; out.textContent = el.value; };
+    el.addEventListener('input', upd);
+    upd();
+  }
+  bind('amp','amp'); bind('scale','scale'); bind('speed','speed');
+  bind('refr','refr'); bind('spec','spec'); bind('tint','tint'); bind('rip','rip');
+
+  document.querySelectorAll('[data-bg]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-bg]').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      S.bg = { grid:0, dots:1, stripes:2 }[btn.dataset.bg];
+    });
+  });
+
+  const bc = document.getElementById('b_caustics');
+  bc.addEventListener('click', () => {
+    S.caustics = S.caustics > 0.5 ? 0 : 1;
+    bc.classList.toggle('on', S.caustics > 0.5);
+  });
+
+  const bp = document.getElementById('b_pause');
+  bp.addEventListener('click', () => {
+    paused = !paused;
+    bp.textContent = paused ? '继续' : '暂停';
+    bp.classList.toggle('on', paused);
+  });
+
+  const panel = document.getElementById('panel');
+  document.getElementById('toggle').addEventListener('click', () => panel.classList.toggle('hide'));
+  const tip = document.getElementById('tip');
+  setTimeout(() => { tip.style.opacity = '0'; }, 3200);
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.floor(innerWidth * dpr), h = Math.floor(innerHeight * dpr);
+    if (cvs.width !== w || cvs.height !== h) {
+      cvs.width = w; cvs.height = h;
+      gl.viewport(0, 0, w, h);
+    }
+  }
+  addEventListener('resize', resize);
+  resize();
+
+  function frame(now) {
+    const dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+    if (!paused) tAcc += dt;
+    resize();
+
+    gl.uniform2f(U.uRes, cvs.width, cvs.height);
+    gl.uniform1f(U.uTime, tAcc);
+    gl.uniform1f(U.uAmp, S.amp / 50);
+    gl.uniform1f(U.uScale, 0.9 + S.scale / 26);
+    gl.uniform1f(U.uSpeed, S.speed / 42);
+    gl.uniform1f(U.uRefr, S.refr / 42);
+    gl.uniform1f(U.uSpec, S.spec / 60);
+    gl.uniform1f(U.uTint, S.tint / 55);
+    gl.uniform1f(U.uRip, S.rip / 65);
+    gl.uniform1f(U.uBg, S.bg);
+    gl.uniform1f(U.uCaustics, S.caustics);
+    gl.uniform4fv(U.uRipples, ripples);
+
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
 </script>
 </body>
 </html>
