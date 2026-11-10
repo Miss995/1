@@ -215,7 +215,9 @@ float rippleH(vec2 uv, float t) {
         float front = age * 0.62;
         float ring  = exp(-pow((dist - front) * 9.0, 2.0));
         float fall  = exp(-age * 1.55);
-        h += sin((dist - front) * 40.0) * ring * fall * r.w;
+        // 波长随距离拉长：越远圈距越疏（真水波色散）
+        float phase = (dist - front) * 40.0 / (1.0 + max(dist, 0.0) * 8.0);
+        h += sin(phase) * ring * fall * r.w;
         // 按下去的那一下中心也鼓一下
         h += exp(-pow(dist * 26.0, 2.0)) * exp(-age * 6.0) * r.w * 1.6;
     }
@@ -244,7 +246,7 @@ void main() {
     vec2 rgrad = vec2(rx - r0, ry - r0) / re;
 
     float amp = uAmp * 0.0075;
-    vec2 off = grad * amp * uRefr * 0.55 + rgrad * uRip * 0.020;
+    vec2 off = grad * amp * uRefr * 0.55 + rgrad * uRip * 0.006;
 
     // 三通道色散
     vec3 colR = under(uv + off * 1.02);
