@@ -212,14 +212,18 @@ float rippleH(vec2 uv, float t) {
         vec2 d = uv - r.xy;
         d.x *= aspect;
         float dist = length(d);
-        float front = age * 0.30;
-        float ring  = exp(-pow((dist - front) * 2.2, 2.0));
+        float front = age * 0.45;
+        // ★ 单边包络：波前内侧 0.10 之外归零（力只往外推，后面早该平了）
+        //   外侧用高斯收，只留波前那一圈在动
+        float tail = smoothstep(front - 0.10, front, dist);
+        float head = exp(-pow(max(dist - front, 0.0) * 5.0, 2.0));
+        float ring = tail * head;
         float fall  = exp(-age * 1.10);
         // ★ 色散：水波长波跑得快、短波跑得慢
         //   → 近处留下短波（密），远处全是长波（疏）
         //   → 时间越久短波耗散，整体越疏
         //   对数相位：phase = k0*r0*ln(1+r/r0)，波数 k0/(1+r/r0) 随距离平滑递减
-        float k0 = 240.0 * exp(-age * 0.90);   // 基准波数，随年龄衰减
+        float k0 = 380.0 * exp(-age * 0.90);   // 基准波数，随年龄衰减
         float r0 = 0.10 + age * 0.10;          // 色散长度，随年龄外扩
         float phase = k0 * r0 * log(1.0 + dist / r0);
         h += sin(phase) * ring * fall * r.w;
