@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>水润</title>
+<style>
+:root{
+  --wet: 0;        /* 0=干玻璃 1=水润 */
+  --flow: 1;       /* 流动速度倍率 */
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{
+  margin:0;height:100vh;overflow:hidden;background:#0d0f12;color:#e8e6e3;
+  font-family:-apple-system,"PingFang SC",sans-serif;
+}
+
+/* ---- 背景彩色块，专门用来“透出来” ---- */
+.blob{position:fixed;border-radius:50%;filter:blur(48px);pointer-events:none}
+.b1{width:300px;height:300px;background:#ff6f3c;top:-70px;left:-80px;opacity:.85}
+.b2{width:340px;height:340px;background:#2f7bff;bottom:-40px;right:-120px;opacity:.7}
+.b3{width:260px;height:260px;background:#19c37d;top:36%;left:48%;opacity:.55}
+.b4{width:220px;height:220px;background:#ff4fa3;top:52%;left:-60px;opacity:.5}
+
+/* ---- 假聊天 ---- */
+.chat{position:relative;z-index:1;padding:16px 14px 170px;display:flex;flex-direction:column;gap:12px}
+.row{display:flex}
+.row.me{justify-content:flex-end}
+.bubble{max-width:76%;padding:10px 13px;border-radius:16px;font-size:14px;line-height:1.55;background:#2b3038;color:#e6e2dd}
+.row.me .bubble{background:linear-gradient(160deg,#ffa062,#f2782f);color:#2a1400;border-bottom-right-radius:6px}
+.row:not(.me) .bubble{border-bottom-left-radius:6px}
+
+/* ============ 水润输入框 ============ */
+.inputwrap{
+  position:fixed;left:0;right:0;bottom:0;z-index:10;
+  padding:0 14px 16px;
+  transition:bottom .3s cubic-bezier(.2,.8,.2,1);
+}
+body.panel-open .inputwrap{bottom:190px}
+
+.panel{
+  position:relative;
+  display:flex;align-items:center;gap:10px;
+  min-height:54px;padding:8px 12px;
+
+  /* 关键①：边缘不是四分之一圆，是不规则的“水囊”形，缓慢变形 */
+  border-radius:
+    calc(26px - var(--wet) * 3px) calc(30px + var(--wet) * 6px)
+    calc(28px - var(--wet) * 2px) calc(32px + var(--wet) * 4px);
+
+  /* 关键②：底下那层被“弯”了 —— 强模糊 + 拉高饱和 + 提亮 */
+  backdrop-filter: blur(calc(6px + var(--wet) * 14px))
+                   saturate(calc(140% + var(--wet) * 130%))
+                   brightness(calc(100% + var(--wet) * 16%));
+  -webkit-backdrop-filter: blur(calc(6px + var(--wet) * 14px))
+                   saturate(calc(140% + var(--wet) * 130%))
+                   brightness(calc(100% + var(--wet) * 16%));
+
+  /* 淡到几乎没有底色，全靠背后的东西撑起“水” */
+  background: rgba(180,205,230, calc(0.20 - var(--wet) * 0.13));
+
+  /* 关键③：内壁的湿边 —— 上缘一道白，下缘一道暗，中间透 */
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255, calc(0.18 + var(--wet) * 0.45)),
+    inset 0 -2px 6px rgba(10,30,50, calc(0.10 + var(--wet) * 0.30)),
+    inset 2px 0 8px rgba(255,255,255, calc(0.04 + var(--wet) * 0.10)),
+    0 6px 22px rgba(0,20,40, calc(0.28 + var(--wet) * 0.12));
+
+  overflow:hidden;
+  animation: breathe calc(7s / var(--flow)) ease-in-out infinite;
+}
+
+/* 上缘那道“液体表面张力”的弧光 */
+.panel::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  border-radius:inherit;
+  background:
+    radial-gradient(120% 60% at 50% -18%,
+      rgba(255,255,255, calc(var(--wet) * 0.50)) 0%,
+      rgba(255,255,255, calc(var(--wet) * 0.10)) 42%,
+      rgba(255,255,255,0) 70%);
+  mix-blend-mode:screen;
+}
+
+/* 会流动的那道斜光 */
+.panel::after{
+  content:"";position:absolute;top:-40%;bottom:-40%;width:46%;
+  left:-60%;
+  background:linear-gradient(100deg,
+      rgba(255,255,255,0) 0%,
+      rgba(255,255,255, calc(var(--wet) * 0.20)) 48%,
+      rgba(255,255,255,0) 100%);
+  filter:blur(6px);
+  pointer-events:none;
+  animation: sweep calc(6.5s / var(--flow)) ease-in-out infinite;
+}
+
+@keyframes breathe{
+  0%,100%{border-radius:23px 36px 26px 36px}
+  33%    {border-radius:29px 25px 34px 24px}
+  66%    {border-radius:24px 33px 22px 38px}
+}
+@keyframes sweep{
+  0%  {left:-60%;opacity:0}
+  15% {opacity:1}
+  55% {left:110%;opacity:.9}
+  56% {opacity:0}
+  100%{left:110%;opacity:0}
+}
+
+/* 两颗水珠：挂在左下和右上，会缓慢“长大再收回去” */
+.drop{
+  position:absolute;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle at 32% 28%,
+    rgba(255,255,255,.95) 0%,
+    rgba(255,255,255,.45) 28%,
+    rgba(255,255,255,0) 62%);
+  filter:blur(.4px);
+  opacity:var(--wet);
+}
+.d1{width:9px;height:9px;left:16px;bottom:7px;animation:grow1 5.2s ease-in-out infinite}
+.d2{width:5px;height:5px;right:34px;top:6px;animation:grow2 6.4s ease-in-out infinite}
+.d3{width:3.5px;height:3.5px;right:16px;bottom:10px;animation:grow2 4.6s ease-in-out infinite .8s}
+@keyframes grow1{
+  0%,100%{transform:scale(.55);opacity:calc(var(--wet)*.55)}
+  50%    {transform:scale(1.25);opacity:var(--wet)}
+}
+@keyframes grow2{
+  0%,100%{transform:scale(.6);opacity:calc(var(--wet)*.45)}
+  55%    {transform:scale(1.1);opacity:calc(var(--wet)*.9)}
+}
+
+.plus{
+  width:34px;height:34px;flex:0 0 34px;border-radius:50%;
+  display:grid;place-items:center;font-size:20px;color:rgba(255,255,255,.75);
+  background:rgba(255,255,255,.10);
+  backdrop-filter:blur(4px);
+}
+.field{flex:1;font-size:15px;color:rgba(255,255,255,.62);padding:4px 2px}
+.send{
+  flex:0 0 auto;padding:9px 17px;border-radius:17px;font-size:14px;font-weight:600;
+  color:#26130a;
+  background:linear-gradient(160deg,#ffb877,#f5854a);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55), 0 3px 10px rgba(240,120,50,.35);
+}
+
+/* ---- 控件 ---- */
+.ctl{
+  position:fixed;left:0;right:0;bottom:0;z-index:20;
+  padding:12px 18px calc(16px + env(safe-area-inset-bottom));
+  background:rgba(10,11,13,.94);
+  backdrop-filter:blur(20px);
+  border-top:1px solid rgba(255,255,255,.08);
+  transform:translateY(100%);
+  transition:transform .3s cubic-bezier(.2,.8,.2,1);
+}
+.ctl.show{transform:translateY(0)}
+.ctl h4{margin:0 0 10px;font-size:11px;font-weight:500;color:#7d7873;letter-spacing:.12em}
+.r{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.r label{font-size:12px;color:#9a948e;width:44px;flex:0 0 44px}
+.r input[type=range]{flex:1;-webkit-appearance:none;height:24px;background:transparent}
+.r input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:#2b2e33}
+.r input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+  background:#6fd3ff;margin-top:-8px;
+  box-shadow:0 0 0 5px rgba(111,211,255,.14);
+}
+.presets{display:flex;gap:8px;margin-top:6px}
+.presets button{
+  flex:1;padding:10px 0;border-radius:12px;border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.04);color:#c9c4bd;font-size:12.5px;
+}
+.presets button:active{background:rgba(111,211,255,.18)}
+.handle{
+  position:fixed;right:16px;bottom:92px;z-index:30;
+  padding:10px 14px;border-radius:20px;font-size:13px;
+  background:rgba(20,40,60,.75);color:#bfe8ff;
+  border:1px solid rgba(140,220,255,.28);
+  backdrop-filter:blur(14px);
+  transition:opacity .2s;
+}
+body.panel-open .handle{opacity:0;pointer-events:none}
+</style>
+</head>
+<body>
+
+<div class="blob b1"></div><div class="blob b2"></div>
+<div class="blob b3"></div><div class="blob b4"></div>
+
+<div class="chat">
+  <div class="row me"><div class="bubble">小猫，你看这个玻璃</div></div>
+  <div class="row"><div class="bubble">（凑近看）嗯，会弯。</div></div>
+  <div class="row me"><div class="bubble">但是少了那种水润润的感觉</div></div>
+  <div class="row"><div class="bubble">……那你要的可能不是玻璃，是水。</div></div>
+  <div class="row me"><div class="bubble">我恍然大悟</div></div>
+  <div class="row"><div class="bubble">猫试试水囊那版。</div></div>
+  <div class="row me"><div class="bubble">要那种快滴下来的</div></div>
+  <div class="row"><div class="bubble">好，坠着。</div></div>
+</div>
+
+<div class="inputwrap">
+  <div class="panel">
+    <div class="drop d1"></div><div class="drop d2"></div><div class="drop d3"></div>
+    <div class="plus">＋</div>
+    <div class="field">跟小猫说说话…</div>
+    <div class="send">发送</div>
+  </div>
+</div>
+
+<div class="handle" id="handle">调一下 ▴</div>
+
+<div class="ctl" id="ctl">
+  <h4>WETNESS</h4>
+  <div class="r"><label>水润</label><input type="range" id="rWet" min="0" max="100" value="100"></div>
+  <div class="r"><label>流速</label><input type="range" id="rFlow" min="20" max="300" value="100"></div>
+  <div class="presets">
+    <button data-p="0">干玻璃</button>
+    <button data-p="1">水润（推荐）</button>
+    <button data-p="2">快滴下来了</button>
+  </div>
+</div>
+
+<script>
+const R = document.documentElement;
+const ctl = document.getElementById('ctl');
+const handle = document.getElementById('handle');
+handle.onclick = () => {
+  const open = ctl.classList.toggle('show');
+  document.body.classList.toggle('panel-open', open);
+};
+
+const rWet = document.getElementById('rWet');
+const rFlow = document.getElementById('rFlow');
+
+function apply(){
+  R.style.setProperty('--wet', (rWet.value / 100).toFixed(3));
+  R.style.setProperty('--flow', (rFlow.value / 100).toFixed(2));
+}
+[rWet, rFlow].forEach(el => el.addEventListener('input', apply));
+
+const presets = {
+  0: [0,  100],
+  1: [100, 100],
+  2: [100, 45],
+};
+document.querySelectorAll('.presets button').forEach(b => {
+  b.onclick = () => {
+    const v = presets[b.dataset.p];
+    rWet.value = v[0]; rFlow.value = v[1];
+    apply();
+  };
+});
+
+apply();
+</script>
+</body>
+</html>
