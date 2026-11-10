@@ -216,7 +216,7 @@ float rippleH(vec2 uv, float t) {
         float ring  = exp(-pow((dist - front) * 9.0, 2.0));
         float fall  = exp(-age * 1.55);
         // 波长随距离缓慢拉长（用乘法不用除法，避免把一个环拉成大坑）
-        float phase = (dist - front) * 40.0 * (1.0 - clamp(dist, 0.0, 0.75) * 1.05);
+        float phase = (dist - front) * 62.0 * (1.0 - clamp(dist, 0.0, 0.75) * 0.35);
         h += sin(phase) * ring * fall * r.w;
         // 按下去的那一下中心也鼓一下
         h += exp(-pow(dist * 26.0, 2.0)) * exp(-age * 6.0) * r.w * 1.6;
