@@ -271,10 +271,6 @@ void main() {
     float spec2 = pow(max(dot(n, L), 0.0), 14.0);
     col += spec2 * uSpec * vec3(0.45, 0.66, 0.86) * 0.55;
 
-    // 掠射补光：波纹斜面上泛的白
-    float graze = pow(1.0 - max(n.z, 0.0), 2.2);
-    col += graze * uSpec * vec3(0.62, 0.80, 0.95) * 0.85;
-
     // 水下焦散
     if (uCaustics > 0.5) {
         float c1 = sin(grad.x * 7.0 + t * 1.3);
