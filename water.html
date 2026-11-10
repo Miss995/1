@@ -245,13 +245,13 @@ void main() {
     float ry = rippleH(uv + vec2(0.0, re), uTime);
     vec2 rgrad = vec2(rx - r0, ry - r0) / re;
 
-    float amp = uAmp * 0.0075;
-    vec2 off = grad * amp * uRefr * 0.55 + rgrad * uRip * 0.006;
+    float amp = uAmp * 0.0032;
+    vec2 off = grad * amp * uRefr * 0.32 + rgrad * uRip * 0.006;
 
     // 三通道色散
-    vec3 colR = under(uv + off * 1.02);
+    vec3 colR = under(uv + off * 1.005);
     vec3 colG = under(uv + off);
-    vec3 colB = under(uv + off * 0.98);
+    vec3 colB = under(uv + off * 0.995);
     vec3 col = vec3(colR.r, colG.g, colB.b);
 
     // 水色：越"深"越蓝，随大浪有起伏
