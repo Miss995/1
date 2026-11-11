@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v21 · 19:25</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v22 · 19:30</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -246,13 +246,13 @@ float rippleH(vec2 uv, float t) {
         for (int n = 0; n < 5; n++) {
             // 五圈同一时刻出发，各自速度不同：靠外的快、靠内的慢。
             // 所以一开始挤在手指那儿，越往后越散开 —— 不增不减，没有"新生"
-            float speed = 1.0 - float(n) * 0.35;
+            float speed = pow(0.72, float(n));   // 一圈比一圈慢，但全是正的
             float rn = uRipR[i] + float(n) * 0.022 + uFront * age * speed;
             float d = abs(dist - rn);
             float wv = 0.010 + rn * 0.032;      // 越远波峰越宽
             float prof = exp(-pow(d / wv, 2.0));
             h += prof * ampN * fall * spread * edgeFade * r.w;
-            ampN *= 0.82;          // 越内侧越弱，像真的波包
+            ampN *= 0.66;          // 越内侧越弱（也压一压中心叠出来的坑）
         }
 
         h += exp(-pow(dist * 26.0, 2.0)) * exp(-age * 6.0) * r.w * 1.6;
