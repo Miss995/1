@@ -93,7 +93,7 @@
   </div>
   <div class="btns">
     <button id="b_caustics" class="on">水下光斑</button>
-    <button id="b_pause">暂停</button>
+    <button id="b_pause">继续</button>
   </div>
 </div>
 
@@ -194,8 +194,7 @@ vec3 under(vec2 uv) {
 float waterHeight(vec2 p, float t) {
     float h = 0.0;
     h += fbm(p * 0.55 + vec2( t * 0.10, t * 0.06)) * 1.00;
-    h += fbm(p * 1.50 - vec2( t * 0.18,-t * 0.12)) * 0.46;
-    h += fbm(p * 3.90 + vec2(-t * 0.30, t * 0.24)) * 0.20;
+    h += fbm(p * 1.50 - vec2( t * 0.18,-t * 0.12)) * 0.48;
     return h;
 }
 
@@ -357,7 +356,8 @@ void main() {
   U.uRipples = gl.getUniformLocation(prog, 'uRipples');
 
   const S = { amp:46, scale:42, speed:28, refr:50, spec:62, tint:55, rip:65, bg:0, caustics:1 };
-  let paused = false, tAcc = 0, last = performance.now();
+  let paused = true, tAcc = 2.0, last = performance.now();
+  let needDraw = true;   // 暂停时只在需要时画一帧，其余时间一帧都不算
 
   // ---------- 涟漪（6 个槽，轮着用） ----------
   const RIP_N = 6;
@@ -384,6 +384,11 @@ void main() {
   let down = false;
   cvs.addEventListener('pointerdown', e => {
     down = true;
+    if (paused) {
+      paused = false; needDraw = true;
+      const _bp = document.getElementById('b_pause');
+      _bp.textContent = '暂停'; _bp.classList.remove('on');
+    }
     const [u,v] = uvFromEvent(e);
     addRipple(u, v, 1.0);
     lastRipTime = 0; // 第一下不节流
@@ -401,7 +406,7 @@ void main() {
   function bind(id, key) {
     const el = document.getElementById('s_' + id);
     const out = document.getElementById('v_' + id);
-    const upd = () => { S[key] = +el.value; out.textContent = el.value; };
+    const upd = () => { S[key] = +el.value; out.textContent = el.value; needDraw = true; };
     el.addEventListener('input', upd);
     upd();
   }
@@ -413,6 +418,7 @@ void main() {
       document.querySelectorAll('[data-bg]').forEach(b => b.classList.remove('on'));
       btn.classList.add('on');
       S.bg = { grid:0, dots:1, stripes:2 }[btn.dataset.bg];
+      needDraw = true;
     });
   });
 
@@ -420,6 +426,7 @@ void main() {
   bc.addEventListener('click', () => {
     S.caustics = S.caustics > 0.5 ? 0 : 1;
     bc.classList.toggle('on', S.caustics > 0.5);
+    needDraw = true;
   });
 
   const bp = document.getElementById('b_pause');
@@ -427,6 +434,7 @@ void main() {
     paused = !paused;
     bp.textContent = paused ? '继续' : '暂停';
     bp.classList.toggle('on', paused);
+    needDraw = true;
   });
 
   const panel = document.getElementById('panel');
@@ -440,6 +448,7 @@ void main() {
     if (cvs.width !== w || cvs.height !== h) {
       cvs.width = w; cvs.height = h;
       gl.viewport(0, 0, w, h);
+      needDraw = true;
     }
   }
   addEventListener('resize', resize);
@@ -448,6 +457,7 @@ void main() {
   let lastPaint = 0;
   function frame(now) {
     requestAnimationFrame(frame);
+    if (paused && !needDraw) return;    // 暂停且已经画过 -> 不再消耗 GPU
     if (now - lastPaint < 33) return;
     lastPaint = now;
     const dt = Math.min((now - last) / 1000, 0.05);
@@ -469,6 +479,7 @@ void main() {
     gl.uniform4fv(U.uRipples, ripples);
 
     gl.drawArrays(gl.TRIANGLES, 0, 3);
+    needDraw = false;
   }
   requestAnimationFrame(frame);
 })();
