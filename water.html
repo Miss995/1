@@ -228,17 +228,26 @@ float rippleH(vec2 uv, float t) {
         d.x *= aspect;
         float dist = length(d);
 
-        float front = age * uFront;
-        float tail = smoothstep(front - 0.10, front, dist);
-        float head = exp(-pow(max(dist - front, 0.0) * 12.0, 2.0));
-        float ring = tail * head;
+        // 起手不是点，是一个跟手指差不多大的小环
+        float front = 0.032 + age * uFront;
         float fall = exp(-age * uDecay);
+        // 能量摊在越来越长的圆周上：1/sqrt(r)，不是指数硬砍
+        float spread = 1.0 / sqrt(1.0 + dist * 3.0);
 
         float k0 = uPitch * exp(-age * 0.90);
         float r0 = 0.10 + age * 0.10;
         float phase = k0 * r0 * log(1.0 + dist / r0);
 
-        h += sin(phase) * ring * fall * r.w;
+        // 一组波连着往外传，不是单独一圈
+        for (int j = 0; j < 3; j++) {
+            float fj = front - float(j) * 0.058;
+            if (fj <= 0.001) break;
+            float tailJ = smoothstep(fj - 0.05, fj, dist);
+            float headJ = exp(-pow(max(dist - fj, 0.0) * 20.0, 2.0));
+            float ampJ  = 1.0 / (1.0 + float(j) * 0.9);
+            h += sin(phase + float(j) * 1.35) * tailJ * headJ * ampJ * fall * spread * r.w;
+        }
+
         h += exp(-pow(dist * 26.0, 2.0)) * exp(-age * 6.0) * r.w * 1.6;
     }
     return h;
@@ -377,7 +386,7 @@ void main() {
     .forEach(n => U[n] = gl.getUniformLocation(prog, n));
   U.uRipples = gl.getUniformLocation(prog, 'uRipples');
 
-  const S = { pitch:380, front:28, decay:110, refr:40, norm:100,
+  const S = { pitch:380, front:28, decay:32, refr:40, norm:100,
               shine:80, spec:90, trans:55, caus:60, bg:0, wave:0, glow:0 };
   let paused = true, tAcc = 2.0, last = performance.now();
   let needDraw = true;
