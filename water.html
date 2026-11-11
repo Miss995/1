@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v16 · 19:00</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v17 · 19:07</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -240,21 +240,18 @@ float rippleH(vec2 uv, float t) {
         // 主要衰减交给位置：跑到屏幕边缘才淡出去
         float edgeFade = 1.0 - smoothstep(0.62, 1.25, dist);
 
-        // 对数相位：近处密、远处疏（这个不能丢）
-        // 但 k 固定不随时间变，波峰轨迹才是干净的
-        float r0 = 0.45;
-        float k = uPitch;
-        float omega = k * uFront * uPhaseSpd;   // 相速相对群速的倍数（2 倍是深水波的理论值）
-        float phase = k * r0 * log(1.0 + dist / r0) - omega * age;
-
-        // 波包宽度：从起手半径开始长，封顶 0.40。
-        // 力停了就不再往内补新波峰，内边缘一路往外扫，中心自然空掉
-        float W = clamp(age * 0.22, uRipR[i], 0.40);
-        // 中心压平的宽度跟着手指起手半径走，按下去多宽就空多宽
-        float inner = max(0.012, uRipR[i] * 0.6);
-        float env = exp(-pow((dist - front) / W, 2.0)) * smoothstep(0.0, inner, dist);
-        // 力停了靠内边缘外扫来实现，不再拿时间硬压 (v15 删)
-        h += sin(phase) * env * fall * spread * edgeFade * r.w;
+        // 不用正弦波场了，直接画 5 个波峰：
+        // 各自往外跑，从生到死就是这 5 个 —— 不增、不减、不冒新的
+        float gap = 6.2831853 / max(uPitch, 40.0) * 1.5;
+        float ampN = 1.0;
+        for (int n = 0; n < 5; n++) {
+            float rn = front - float(n) * gap;
+            if (rn < 0.002) break;
+            float d = abs(dist - rn);
+            float prof = exp(-pow(d / (gap * 0.30), 2.0));
+            h += prof * ampN * fall * spread * edgeFade * r.w;
+            ampN *= 0.82;          // 越内侧越弱，像真的波包
+        }
 
         h += exp(-pow(dist * 26.0, 2.0)) * exp(-age * 6.0) * r.w * 1.6;
     }
