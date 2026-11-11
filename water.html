@@ -97,6 +97,7 @@
   <div class="btns">
     <button id="b_wave">大浪 关</button>
     <button id="b_pause">继续</button>
+    <button id="b_glow">底光 关</button>
   </div>
 </div>
 
@@ -122,6 +123,7 @@ uniform float uCaustic;
 uniform float uTint;
 uniform float uBg;
 uniform float uWave;
+uniform float uBaseGlow;
 
 uniform vec4 uRipples[6];
 
@@ -160,10 +162,12 @@ vec3 underGrid(vec2 uv) {
     vec2 g = abs(fract(uv * vec2(9.0, 15.0)) - 0.5);
     float line = smoothstep(0.425, 0.500, max(g.x, g.y));
     col += line * vec3(0.42, 0.58, 0.70) * 0.62;
-    float r = smoothstep(0.10, 0.0, length(uv - vec2(0.24, 0.68)));
-    col += r * vec3(0.62, 0.74, 0.82) * 0.50;
-    float r2 = smoothstep(0.16, 0.0, length(uv - vec2(0.78, 0.28)));
-    col += r2 * vec3(0.48, 0.42, 0.36) * 0.55;
+    if (uBaseGlow > 0.5) {
+        float r = smoothstep(0.10, 0.0, length(uv - vec2(0.24, 0.68)));
+        col += r * vec3(0.62, 0.74, 0.82) * 0.50;
+        float r2 = smoothstep(0.16, 0.0, length(uv - vec2(0.78, 0.28)));
+        col += r2 * vec3(0.48, 0.42, 0.36) * 0.55;
+    }
     return col;
 }
 
@@ -354,12 +358,12 @@ void main() {
 
   const U = {};
   ['uRes','uTime','uPitch','uFront','uDecay','uRefr','uNorm','uShine',
-   'uSpecPow','uTrans','uCaustic','uTint','uBg','uWave']
+   'uSpecPow','uTrans','uCaustic','uTint','uBg','uWave','uBaseGlow']
     .forEach(n => U[n] = gl.getUniformLocation(prog, n));
   U.uRipples = gl.getUniformLocation(prog, 'uRipples');
 
   const S = { pitch:380, front:28, decay:110, refr:40, norm:100,
-              shine:80, spec:90, trans:55, caus:60, bg:0, wave:0 };
+              shine:80, spec:90, trans:55, caus:60, bg:0, wave:0, glow:0 };
   let paused = true, tAcc = 2.0, last = performance.now();
   let needDraw = true;
 
@@ -439,6 +443,14 @@ void main() {
     needDraw = true;
   });
 
+  const bg2 = document.getElementById('b_glow');
+  bg2.addEventListener('click', () => {
+    S.glow = S.glow > 0.5 ? 0 : 1;
+    bg2.textContent = S.glow > 0.5 ? '底光 开' : '底光 关';
+    bg2.classList.toggle('on', S.glow > 0.5);
+    needDraw = true;
+  });
+
   const bp = document.getElementById('b_pause');
   bp.addEventListener('click', () => {
     paused = !paused;
@@ -501,6 +513,7 @@ void main() {
     gl.uniform1f(U.uTint, 0.55);
     gl.uniform1f(U.uBg, S.bg);
     gl.uniform1f(U.uWave, S.wave);
+    gl.uniform1f(U.uBaseGlow, S.glow);
     gl.uniform4fv(U.uRipples, ripples);
 
     gl.drawArrays(gl.TRIANGLES, 0, 3);
