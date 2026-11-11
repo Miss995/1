@@ -99,37 +99,6 @@
 
 <script id="vs" type="x-shader/x-vertex">
 attribute vec2 aPos;
-// ---------- 波峰的亮面：只取朝向光源的那半圈 ----------
-// 涟漪高度是径向对称的（同一圈处处相等），所以直接拿高度当亮面会整圈亮。
-// 真实的水：波峰是一整圈，但只有朝着光的那一段能把光反进眼睛。
-float rippleLit(vec2 uv, float t) {
-    float lit = 0.0;
-    float aspect = uRes.x / uRes.y;
-    vec2 L2 = normalize(vec2(0.42, 0.80));
-    for (int i = 0; i < 6; i++) {
-        vec4 r = uRipples[i];
-        if (r.w <= 0.001) continue;
-        float age = t - r.z;
-        if (age < 0.0 || age > 2.8) continue;
-
-        vec2 d = uv - r.xy;
-        d.x *= aspect;
-        float dist = length(d);
-        if (dist < 0.0001) continue;
-
-        float facing = dot(d / dist, L2);            // -1 = 背光, +1 = 朝光
-        float litSide = smoothstep(-0.40, 0.50, facing);   // 平滑过渡，一半亮一半不亮
-
-        float front = age * 0.28;
-        float ring = smoothstep(front - 0.10, front, dist)
-                   * exp(-pow(max(dist - front, 0.0) * 12.0, 2.0));
-        float fall = exp(-age * 1.10);
-
-        lit += litSide * ring * fall * r.w;
-    }
-    return lit;
-}
-
 void main() { gl_Position = vec4(aPos, 0.0, 1.0); }
 </script>
 
@@ -261,6 +230,37 @@ float rippleH(vec2 uv, float t) {
         h += exp(-pow(dist * 26.0, 2.0)) * exp(-age * 6.0) * r.w * 1.6;
     }
     return h;
+}
+
+// ---------- 波峰的亮面：只取朝向光源的那半圈 ----------
+// 涟漪高度是径向对称的（同一圈处处相等），所以直接拿高度当亮面会整圈亮。
+// 真实的水：波峰是一整圈，但只有朝着光的那一段能把光反进眼睛。
+float rippleLit(vec2 uv, float t) {
+    float lit = 0.0;
+    float aspect = uRes.x / uRes.y;
+    vec2 L2 = normalize(vec2(0.42, 0.80));
+    for (int i = 0; i < 6; i++) {
+        vec4 r = uRipples[i];
+        if (r.w <= 0.001) continue;
+        float age = t - r.z;
+        if (age < 0.0 || age > 2.8) continue;
+
+        vec2 d = uv - r.xy;
+        d.x *= aspect;
+        float dist = length(d);
+        if (dist < 0.0001) continue;
+
+        float facing = dot(d / dist, L2);            // -1 = 背光, +1 = 朝光
+        float litSide = smoothstep(-0.40, 0.50, facing);   // 平滑过渡，一半亮一半不亮
+
+        float front = age * 0.28;
+        float ring = smoothstep(front - 0.10, front, dist)
+                   * exp(-pow(max(dist - front, 0.0) * 12.0, 2.0));
+        float fall = exp(-age * 1.10);
+
+        lit += litSide * ring * fall * r.w;
+    }
+    return lit;
 }
 
 void main() {
