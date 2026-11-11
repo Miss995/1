@@ -244,7 +244,7 @@ float rippleH(vec2 uv, float t) {
             if (fj <= 0.001) break;
             float tailJ = smoothstep(fj - 0.05, fj, dist);
             float headJ = exp(-pow(max(dist - fj, 0.0) * 20.0, 2.0));
-            float ampJ  = 1.0 / (1.0 + float(j) * 0.9);
+            float ampJ  = 1.0 / (1.0 + float(j) * 0.35);
             h += sin(phase + float(j) * 1.35) * tailJ * headJ * ampJ * fall * spread * r.w;
         }
 
