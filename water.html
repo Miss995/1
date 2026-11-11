@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v25 · 19:37</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v26 · 19:46</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -243,6 +243,7 @@ float rippleH(vec2 uv, float t) {
         // 不用正弦波场了，直接画 5 个波峰：
         // 各自往外跑，从生到死就是这 5 个 —— 不增、不减、不冒新的
         float ampN = 1.0;
+        float hAcc = 0.0;
         for (int n = 0; n < 5; n++) {
             // 五圈同一时刻出发，各自速度不同：靠外的快、靠内的慢。
             // 所以一开始挤在手指那儿，越往后越散开 —— 不增不减，没有"新生"
@@ -251,9 +252,12 @@ float rippleH(vec2 uv, float t) {
             float d = abs(dist - rn);
             float wv = 0.010 + rn * 0.032;      // 越远波峰越宽
             float prof = exp(-pow(d / wv, 2.0));
-            h += prof * ampN * fall * spread * edgeFade * r.w;
-            ampN *= 0.66;          // 越内侧越弱（也压一压中心叠出来的坑）
+            hAcc += prof * ampN;
+            ampN *= 0.66;          // 越内侧越弱
         }
+        // 中心平坦窗：手指底下那块是真的空的（振幅 0，不是"很弱"）
+        float innerMask = smoothstep(0.0, uRipR[i] * 0.75, dist);
+        h += hAcc * fall * spread * edgeFade * innerMask * r.w;
 
     }
     return h;
