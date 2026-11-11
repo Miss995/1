@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v2 · 17:07</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v3 · 17:10</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -114,6 +114,7 @@ uniform vec2  uRes;
 uniform float uTime;
 uniform float uPitch;
 uniform float uFront;
+uniform float uStartR;
 uniform float uDecay;
 uniform float uRefr;
 uniform float uNorm;
@@ -230,7 +231,7 @@ float rippleH(vec2 uv, float t) {
         float dist = length(d);
 
         // 起手不是点，是一个跟手指差不多大的小环
-        float front = 0.032 + age * uFront;
+        float front = uStartR + age * uFront;
         float fall = exp(-age * uDecay);
         // 能量摊在越来越长的圆周上：1/sqrt(r)，不是指数硬砍
         float spread = 1.0 / sqrt(1.0 + dist * 3.0);
@@ -386,6 +387,7 @@ void main() {
    'uSpecPow','uTrans','uCaustic','uTint','uBg','uWave','uBaseGlow']
     .forEach(n => U[n] = gl.getUniformLocation(prog, n));
   U.uRipples = gl.getUniformLocation(prog, 'uRipples');
+  U.uStartR = gl.getUniformLocation(prog, 'uStartR');
 
   const S = { pitch:380, front:28, decay:32, refr:40, norm:100,
               shine:80, spec:90, trans:55, caus:60, bg:0, wave:0, glow:0 };
@@ -413,6 +415,15 @@ void main() {
     return [ (e.clientX - r.left) / r.width, 1.0 - (e.clientY - r.top) / r.height ];
   }
 
+  // 手指压在屏上的真实大小（uv 高度比例）。鼠标不报面积，退回一个手感值
+  let curStartR = 0.036;
+  function touchRadiusUV(e) {
+    const r = cvs.getBoundingClientRect();
+    let d = e.width;
+    if (!d || d <= 1) d = r.height * 0.072;   // 鼠标/设备不报 → 约 3.6% 屏高
+    return Math.max(0.012, Math.min(0.11, (d * 0.5) / r.height));
+  }
+
   let down = false;
   let holdU = 0, holdV = 0, holdNext = 0;
 
@@ -425,6 +436,7 @@ void main() {
       _bp.textContent = '暂停'; _bp.classList.remove('on');
     }
     const [u,v] = uvFromEvent(e);
+    curStartR = touchRadiusUV(e);
     holdU = u; holdV = v;
     addRipple(u, v, 1.0);
     lastRipTime = 0;
@@ -435,6 +447,7 @@ void main() {
   cvs.addEventListener('pointermove', e => {
     if (!down) return;
     const [u,v] = uvFromEvent(e);
+    curStartR = touchRadiusUV(e);
     holdU = u; holdV = v;
     // 上一帧到这个位置之间补点，手划快了也不会一个点一个点地跳
     if (prevU >= 0) {
@@ -543,6 +556,7 @@ void main() {
     gl.uniform1f(U.uWave, S.wave);
     gl.uniform1f(U.uBaseGlow, S.glow);
     gl.uniform4fv(U.uRipples, ripples);
+    gl.uniform1f(U.uStartR, curStartR);
 
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     needDraw = false;
