@@ -73,14 +73,15 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v10 · 17:54</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v11 · 18:34</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
 <div id="panel">
   <div class="hd"><b>涟漪参数</b><span>左上有光源</span></div>
 
-  <div class="row"><label>波长</label><input id="s_pitch" type="range" min="80"  max="900" value="380"><span class="val" id="v_pitch">380</span></div>
+  <div class="row"><label>波长</label><input id="s_pitch" type="range" min="80"  max="900" value="180"><span class="val" id="v_pitch">180</span></div>
+  <div class="row"><label>波峰速</label><input id="s_spd" type="range" min="30" max="320" value="200"><span class="val" id="v_spd">200</span></div>
   <div class="row"><label>扩散</label><input id="s_front" type="range" min="6"   max="60"  value="28"><span class="val" id="v_front">28</span></div>
   <div class="row"><label>消散</label><input id="s_decay" type="range" min="30"  max="250" value="110"><span class="val" id="v_decay">110</span></div>
   <div class="row"><label>折射</label><input id="s_refr"  type="range" min="0"   max="100" value="40"><span class="val" id="v_refr">40</span></div>
@@ -114,6 +115,7 @@ uniform vec2  uRes;
 uniform float uTime;
 uniform float uPitch;
 uniform float uFront;
+uniform float uPhaseSpd;
 uniform float uDecay;
 uniform float uRefr;
 uniform float uNorm;
@@ -240,7 +242,7 @@ float rippleH(vec2 uv, float t) {
         // 但 k 固定不随时间变，波峰轨迹才是干净的
         float r0 = 0.12;
         float k = uPitch;
-        float omega = k * uFront * 2.0;      // 相速 = 2 倍群速（深水波就是这样）
+        float omega = k * uFront * uPhaseSpd;   // 相速相对群速的倍数（2 倍是深水波的理论值）
         float phase = k * r0 * log(1.0 + dist / r0) - omega * age;
 
         // 波包宽度 = 5 个波长（用近处的波长算），边界落在同一相位上，不会一胖一瘦
@@ -385,9 +387,10 @@ void main() {
    'uSpecPow','uTrans','uCaustic','uTint','uBg','uWave','uBaseGlow']
     .forEach(n => U[n] = gl.getUniformLocation(prog, n));
   U.uRipples = gl.getUniformLocation(prog, 'uRipples');
+  U.uPhaseSpd = gl.getUniformLocation(prog, 'uPhaseSpd');
   U.uRipR = gl.getUniformLocation(prog, 'uRipR');
 
-  const S = { pitch:180, front:28, decay:40, refr:40, norm:100,
+  const S = { pitch:180, spd:200, front:28, decay:40, refr:40, norm:100,
               shine:80, spec:90, trans:55, caus:60, bg:0, wave:0, glow:0 };
   let paused = true, tAcc = 2.0, last = performance.now();
   let needDraw = true;
@@ -475,7 +478,7 @@ void main() {
     el.addEventListener('input', upd);
     upd();
   }
-  bind('pitch','pitch'); bind('front','front'); bind('decay','decay');
+  bind('pitch','pitch'); bind('spd','spd'); bind('front','front'); bind('decay','decay');
   bind('refr','refr');   bind('norm','norm');   bind('shine','shine');
   bind('spec','spec');   bind('trans','trans'); bind('caus','caus');
 
@@ -558,6 +561,7 @@ void main() {
     gl.uniform1f(U.uBaseGlow, S.glow);
     gl.uniform4fv(U.uRipples, ripples);
     gl.uniform1fv(U.uRipR, ripR);
+    gl.uniform1f(U.uPhaseSpd, S.spd / 100);
 
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     needDraw = false;
