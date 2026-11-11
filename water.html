@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v13 · 18:46</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v14 · 18:56</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -252,6 +252,8 @@ float rippleH(vec2 uv, float t) {
         // 中心压平的宽度跟着手指起手半径走，按下去多宽就空多宽
         float inner = max(0.012, uRipR[i] * 0.6);
         float env = exp(-pow((dist - front) / W, 2.0)) * smoothstep(0.0, inner, dist);
+        // 力只在按下去那一下：中心震两三次就停，不该一直震到 6 秒
+        env *= mix(exp(-age * 2.4), 1.0, smoothstep(0.0, 0.16, dist));
         h += sin(phase) * env * fall * spread * r.w;
 
         h += exp(-pow(dist * 26.0, 2.0)) * exp(-age * 6.0) * r.w * 1.6;
