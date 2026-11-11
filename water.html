@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v24 · 19:33</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v25 · 19:37</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -291,7 +291,7 @@ void main() {
     vec2 gRip = vec2(rx - rH, ry - rH) / re;
 
     // 折射位移
-    vec2 off = gRip * uRefr * 0.00003 + gWave * uWave * 0.0008;
+    vec2 off = gRip * uRefr * 0.00030 + gWave * uWave * 0.0008;
     vec2 uvw = uv + off;
 
     // ---- 水底（透亮的关键：底下被光照亮） ----
