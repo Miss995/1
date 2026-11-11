@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v6 · 17:21</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v7 · 17:27</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -114,7 +114,6 @@ uniform vec2  uRes;
 uniform float uTime;
 uniform float uPitch;
 uniform float uFront;
-uniform float uStartR;
 uniform float uDecay;
 uniform float uRefr;
 uniform float uNorm;
@@ -128,6 +127,7 @@ uniform float uWave;
 uniform float uBaseGlow;
 
 uniform vec4 uRipples[14];
+uniform float uRipR[14];
 
 float hash21(vec2 p) {
     p = fract(p * vec2(123.34, 456.21));
@@ -231,7 +231,7 @@ float rippleH(vec2 uv, float t) {
         float dist = length(d);
 
         // 起手不是点，是一个跟手指差不多大的小环
-        float front = uStartR + age * uFront;
+        float front = uRipR[i] + age * uFront;
         float fall = exp(-age * uDecay);
         // 能量摊在越来越长的圆周上：1/sqrt(r)，不是指数硬砍
         float spread = 1.0 / sqrt(1.0 + dist * 3.0);
@@ -242,15 +242,11 @@ float rippleH(vec2 uv, float t) {
         float omega = k0 * uFront * 1.02;
         float phase = k0 * r0 * log(1.0 + dist / r0) - age * omega;
 
-        // 一组波连着往外传，不是单独一圈
-        for (int j = 0; j < 3; j++) {
-            float fj = front - float(j) * 0.058;
-            if (fj <= 0.001) break;
-            float tailJ = smoothstep(fj - 0.05, fj, dist);
-            float headJ = exp(-pow(max(dist - fj, 0.0) * 20.0, 2.0));
-            float ampJ  = 1.0 / (1.0 + float(j) * 0.35);
-            h += sin(phase + float(j) * 1.35) * tailJ * headJ * ampJ * fall * spread * r.w;
-        }
+        // 从中心到波前这一整片都有波，不是只有前沿那薄薄一圈
+        // 内边：中心 0.035 内平滑起来；外边：波前往后软截止
+        float ed = (1.0 - smoothstep(front - 0.02, front + 0.05, dist))
+                 * smoothstep(0.0, 0.035, dist);
+        h += sin(phase) * ed * fall * spread * r.w;
 
         h += exp(-pow(dist * 26.0, 2.0)) * exp(-age * 6.0) * r.w * 1.6;
     }
@@ -389,7 +385,7 @@ void main() {
    'uSpecPow','uTrans','uCaustic','uTint','uBg','uWave','uBaseGlow']
     .forEach(n => U[n] = gl.getUniformLocation(prog, n));
   U.uRipples = gl.getUniformLocation(prog, 'uRipples');
-  U.uStartR = gl.getUniformLocation(prog, 'uStartR');
+  U.uRipR = gl.getUniformLocation(prog, 'uRipR');
 
   const S = { pitch:380, front:28, decay:40, refr:40, norm:100,
               shine:80, spec:90, trans:55, caus:60, bg:0, wave:0, glow:0 };
@@ -398,6 +394,7 @@ void main() {
 
   const RIP_N = 14;
   const ripples = new Float32Array(RIP_N * 4);
+  const ripR = new Float32Array(RIP_N);
   let ripIdx = 0, lastRipTime = 0;
 
   function addRipple(u, v, strength) {
@@ -410,6 +407,7 @@ void main() {
     ripples[i*4+1] = v;
     ripples[i*4+2] = now;
     ripples[i*4+3] = strength;
+    ripR[i] = curStartR;
   }
 
   function uvFromEvent(e) {
@@ -558,7 +556,7 @@ void main() {
     gl.uniform1f(U.uWave, S.wave);
     gl.uniform1f(U.uBaseGlow, S.glow);
     gl.uniform4fv(U.uRipples, ripples);
-    gl.uniform1f(U.uStartR, curStartR);
+    gl.uniform1fv(U.uRipR, ripR);
 
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     needDraw = false;
