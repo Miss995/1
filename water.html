@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v14 · 18:56</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v15 · 18:57</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -234,9 +234,11 @@ float rippleH(vec2 uv, float t) {
 
         // 起手不是点，是一个跟手指差不多大的小环
         float front = uRipR[i] + age * uFront;
-        float fall = exp(-age * uDecay);
+        float fall = exp(-age * uDecay) * (1.0 - smoothstep(5.0, 6.0, age));
         // 能量摊在越来越长的圆周上：1/sqrt(r)，不是指数硬砍
         float spread = 1.0 / sqrt(1.0 + dist * 3.0);
+        // 主要衰减交给位置：跑到屏幕边缘才淡出去
+        float edgeFade = 1.0 - smoothstep(0.62, 1.25, dist);
 
         // 对数相位：近处密、远处疏（这个不能丢）
         // 但 k 固定不随时间变，波峰轨迹才是干净的
@@ -254,7 +256,7 @@ float rippleH(vec2 uv, float t) {
         float env = exp(-pow((dist - front) / W, 2.0)) * smoothstep(0.0, inner, dist);
         // 力只在按下去那一下：中心震两三次就停，不该一直震到 6 秒
         env *= mix(exp(-age * 2.4), 1.0, smoothstep(0.0, 0.16, dist));
-        h += sin(phase) * env * fall * spread * r.w;
+        h += sin(phase) * env * fall * spread * edgeFade * r.w;
 
         h += exp(-pow(dist * 26.0, 2.0)) * exp(-age * 6.0) * r.w * 1.6;
     }
@@ -396,7 +398,7 @@ void main() {
   U.uPhaseSpd = gl.getUniformLocation(prog, 'uPhaseSpd');
   U.uRipR = gl.getUniformLocation(prog, 'uRipR');
 
-  const S = { pitch:180, spd:200, front:28, decay:40, refr:40, norm:100,
+  const S = { pitch:180, spd:200, front:28, decay:12, refr:40, norm:100,
               shine:80, spec:90, trans:55, caus:60, bg:0, wave:0, glow:0 };
   let paused = true, tAcc = 2.0, last = performance.now();
   let needDraw = true;
