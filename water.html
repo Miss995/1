@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v26 · 19:46</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v27 · 19:49</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -253,7 +253,7 @@ float rippleH(vec2 uv, float t) {
             float wv = 0.010 + rn * 0.032;      // 越远波峰越宽
             float prof = exp(-pow(d / wv, 2.0));
             hAcc += prof * ampN;
-            ampN *= 0.66;          // 越内侧越弱
+            ampN *= 0.88;          // 内圈只稍弱一点，别压到看不见
         }
         // 中心平坦窗：手指底下那块是真的空的（振幅 0，不是"很弱"）
         float innerMask = smoothstep(0.0, uRipR[i] * 0.75, dist);
