@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v19 · 19:17</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v20 · 19:20</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -236,7 +236,7 @@ float rippleH(vec2 uv, float t) {
         float front = uRipR[i] + age * uFront;
         float fall = exp(-age * uDecay) * (1.0 - smoothstep(5.0, 6.0, age));
         // 能量摊在越来越长的圆周上：1/sqrt(r)，不是指数硬砍
-        float spread = 1.0 / sqrt(1.0 + dist * 3.0);
+        float spread = 1.0 / sqrt(1.0 + dist * 1.8);
         // 主要衰减交给位置：跑到屏幕边缘才淡出去
         float edgeFade = 1.0 - smoothstep(0.62, 1.25, dist);
 
@@ -247,7 +247,7 @@ float rippleH(vec2 uv, float t) {
             // 五圈同一时刻出发，各自速度不同：靠外的快、靠内的慢。
             // 所以一开始挤在手指那儿，越往后越散开 —— 不增不减，没有"新生"
             float speed = 1.0 - float(n) * 0.17;
-            float rn = uRipR[i] + uFront * age * speed;
+            float rn = uRipR[i] + float(n) * 0.022 + uFront * age * speed;
             float d = abs(dist - rn);
             float wv = 0.014 + rn * 0.048;      // 越远波峰越宽
             float prof = exp(-pow(d / wv, 2.0));
@@ -395,7 +395,7 @@ void main() {
   U.uPhaseSpd = gl.getUniformLocation(prog, 'uPhaseSpd');
   U.uRipR = gl.getUniformLocation(prog, 'uRipR');
 
-  const S = { pitch:180, spd:200, front:28, decay:12, refr:40, norm:100,
+  const S = { pitch:180, spd:200, front:28, decay:8, refr:40, norm:100,
               shine:80, spec:90, trans:55, caus:60, bg:0, wave:0, glow:0 };
   let paused = true, tAcc = 2.0, last = performance.now();
   let needDraw = true;
