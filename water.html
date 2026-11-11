@@ -300,13 +300,12 @@ void main() {
                      vnoise(uv * 190.0 + vec2(9.1, -t * 0.80))) - 0.5;
     vec2 jit2 = vec2(vnoise(uv * 430.0 + vec2(-t * 1.40, 3.0)),
                      vnoise(uv * 430.0 + vec2(5.5,  t * 1.20))) - 0.5;
-    vec3 nSpec = normalize(n + vec3(jit * 0.130 + jit2 * 0.068, 0.0));
+    vec3 nSpec = normalize(n + vec3(jit * 0.098 + jit2 * 0.052, 0.0));
     vec3 Hv = normalize(L + V);
-    // 碎点要"要么满亮、要么没有"，不能因为打碎就变暗
+    // 高光要"中间一个核，四周柔和衰减"，不能是硬边色块
     float rawSpec = max(dot(nSpec, Hv), 0.0);
-    float spec = smoothstep(0.9680, 0.9970, rawSpec);
-    // uShine 继续参与：锐度调低时点变多、调高时变少
-    spec *= smoothstep(0.0, 1.0, uShine / 80.0) * 0.65 + 0.35;
+    float spec = pow(rawSpec, 100.0 + uShine * 2.2) * 1.65;
+    spec = clamp(spec, 0.0, 1.0);
     col = mix(col, lightCol * 1.75, spec * clamp(uSpecPow, 0.0, 1.0) * 0.95);
 
     // ---- ② 透光：波峰薄的地方，光穿过去 ----
