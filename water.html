@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v18 · 19:13</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v19 · 19:17</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -244,10 +244,10 @@ float rippleH(vec2 uv, float t) {
         // 各自往外跑，从生到死就是这 5 个 —— 不增、不减、不冒新的
         float ampN = 1.0;
         for (int n = 0; n < 5; n++) {
-            // 每一圈按自己的出生时间跑：越早出生的跑得越远、也越快
-            float tn = age - float(n) * 0.20;
-            if (tn < 0.0) break;
-            float rn = uRipR[i] + uFront * tn * (1.0 + tn * 0.32);
+            // 五圈同一时刻出发，各自速度不同：靠外的快、靠内的慢。
+            // 所以一开始挤在手指那儿，越往后越散开 —— 不增不减，没有"新生"
+            float speed = 1.0 - float(n) * 0.17;
+            float rn = uRipR[i] + uFront * age * speed;
             float d = abs(dist - rn);
             float wv = 0.014 + rn * 0.048;      // 越远波峰越宽
             float prof = exp(-pow(d / wv, 2.0));
