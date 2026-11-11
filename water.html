@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v15 · 18:57</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v16 · 19:00</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -242,20 +242,18 @@ float rippleH(vec2 uv, float t) {
 
         // 对数相位：近处密、远处疏（这个不能丢）
         // 但 k 固定不随时间变，波峰轨迹才是干净的
-        float r0 = 0.12;
+        float r0 = 0.45;
         float k = uPitch;
         float omega = k * uFront * uPhaseSpd;   // 相速相对群速的倍数（2 倍是深水波的理论值）
         float phase = k * r0 * log(1.0 + dist / r0) - omega * age;
 
-        // 波包永远装 5 个波峰。宽度按「当前距离上的波长」算 ——
-        // 近处波长短、远处波长长，所以宽度跟着变，但圈数始终是 5
-        float lam = 6.2831853 * (r0 + front) / (k * r0);
-        float W = 5.0 * lam;
+        // 波包宽度：从起手半径开始长，封顶 0.40。
+        // 力停了就不再往内补新波峰，内边缘一路往外扫，中心自然空掉
+        float W = clamp(age * 0.22, uRipR[i], 0.40);
         // 中心压平的宽度跟着手指起手半径走，按下去多宽就空多宽
         float inner = max(0.012, uRipR[i] * 0.6);
         float env = exp(-pow((dist - front) / W, 2.0)) * smoothstep(0.0, inner, dist);
-        // 力只在按下去那一下：中心震两三次就停，不该一直震到 6 秒
-        env *= mix(exp(-age * 2.4), 1.0, smoothstep(0.0, 0.16, dist));
+        // 力停了靠内边缘外扫来实现，不再拿时间硬压 (v15 删)
         h += sin(phase) * env * fall * spread * edgeFade * r.w;
 
         h += exp(-pow(dist * 26.0, 2.0)) * exp(-age * 6.0) * r.w * 1.6;
