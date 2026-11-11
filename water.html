@@ -273,7 +273,7 @@ void main() {
     vec2 cp = uvw * vec2(6.5, 10.5) + vec2(t * 0.11, t * 0.07);
     float caus = pow(vnoise(cp), 4.0) * 3.2;
     caus += pow(vnoise(cp * 1.9 + 13.0), 6.0) * 2.4;
-    col += caus * uCaustic * vec3(0.55, 0.82, 0.98);
+    col += caus * uCaustic * vec3(0.42, 0.86, 0.86);
 
     // 水色：薄薄一层蓝，不能压死底下的东西
     vec3 waterCol = vec3(0.13, 0.36, 0.46);
@@ -285,12 +285,15 @@ void main() {
     // ---- ① 高光：光源在水面的碎倒影 ----
     vec3 Hv = normalize(L + V);
     float spec = pow(max(dot(n, Hv), 0.0), uShine);
-    col += spec * uSpecPow * lightCol;
+    // 已经亮到 1 的地方加不动了：高光是替换，不是无限叠加
+    col += spec * uSpecPow * lightCol * (1.0 - min(col, vec3(1.0)));
 
     // ---- ② 透光：波峰薄的地方，光穿过去 ----
     float crestH = max(rH, 0.0) * 0.5 + 0.5;
     float trans = pow(max(dot(n, L), 0.0), 1.5) * smoothstep(-0.05, 0.95, crestH);
-    col += trans * uTrans * vec3(0.52, 0.80, 0.96);
+    // 泳池底那种青绿：水滤过光之后的颜色，用混的，不是盖白
+    vec3 poolCol = vec3(0.30, 0.74, 0.72);
+    col = mix(col, poolCol * (0.45 + col * 1.05), trans * uTrans * 0.55);
 
     // ---- ③ 极弱的整体环境反光（俯视只有百分之几，不该看得见） ----
     vec3 R = reflect(-V, n);
