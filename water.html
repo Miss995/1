@@ -157,7 +157,7 @@ float fbm(vec2 p) {
 vec3 underGrid(vec2 uv) {
     vec3 col = mix(vec3(0.055,0.115,0.170), vec3(0.150,0.245,0.320), uv.y);
     vec2 g = abs(fract(uv * vec2(9.0, 15.0)) - 0.5);
-    float line = smoothstep(0.455, 0.500, max(g.x, g.y));
+    float line = smoothstep(0.425, 0.500, max(g.x, g.y));
     col += line * vec3(0.42, 0.58, 0.70) * 0.62;
     float r = smoothstep(0.10, 0.0, length(uv - vec2(0.24, 0.68)));
     col += r * vec3(0.62, 0.74, 0.82) * 0.50;
@@ -263,7 +263,7 @@ void main() {
     vec2 gRip = vec2(rx - rH, ry - rH) / re;
 
     // 折射位移
-    vec2 off = gRip * uRefr * 0.00006 + gWave * uWave * 0.0008;
+    vec2 off = gRip * uRefr * 0.00003 + gWave * uWave * 0.0008;
     vec2 uvw = uv + off;
 
     // ---- 水底（透亮的关键：底下被光照亮） ----
@@ -277,7 +277,7 @@ void main() {
 
     // 水色：薄薄一层蓝，不能压死底下的东西
     vec3 waterCol = vec3(0.13, 0.36, 0.46);
-    col = mix(col, col * waterCol * 2.2, uTint * 0.16);
+    col = mix(col, col * waterCol * 2.2, uTint * 0.20);
 
     // ---- 水面法线 ----
     vec3 n = normalize(vec3(-(gRip * uNorm * 0.0040 + gWave * uWave * 0.45), 1.0));
