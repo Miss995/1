@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v7 · 17:27</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v8 · 17:37</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -236,17 +236,15 @@ float rippleH(vec2 uv, float t) {
         // 能量摊在越来越长的圆周上：1/sqrt(r)，不是指数硬砍
         float spread = 1.0 / sqrt(1.0 + dist * 3.0);
 
-        float k0 = uPitch * exp(-age * 0.55);
-        float r0 = 0.10 + age * 0.10;
-        // 相位要带时间项，否则圈只是空间里的静态图案，被包络扫过去就留在原地融化
-        float omega = k0 * uFront * 1.02;
-        float phase = k0 * r0 * log(1.0 + dist / r0) - age * omega;
+        // 真波：波数固定，波峰沿直线匀速往外
+        float k = uPitch;
+        float omega = k * uFront * 2.0;      // 相速 = 2 倍群速（深水波就是这样）
+        float phase = k * dist - omega * age;
 
-        // 从中心到波前这一整片都有波，不是只有前沿那薄薄一圈
-        // 内边：中心 0.035 内平滑起来；外边：波前往后软截止
-        float ed = (1.0 - smoothstep(front - 0.02, front + 0.05, dist))
-                 * smoothstep(0.0, 0.035, dist);
-        h += sin(phase) * ed * fall * spread * r.w;
+        // 波包：整组以 uFront 往外传，宽度随扩散慢慢变胖
+        float W = 0.075 + age * 0.045;
+        float env = exp(-pow((dist - front) / W, 2.0)) * smoothstep(0.0, 0.028, dist);
+        h += sin(phase) * env * fall * spread * r.w;
 
         h += exp(-pow(dist * 26.0, 2.0)) * exp(-age * 6.0) * r.w * 1.6;
     }
