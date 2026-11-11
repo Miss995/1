@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v3 · 17:10</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v4 · 17:14</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -224,7 +224,7 @@ float rippleH(vec2 uv, float t) {
         vec4 r = uRipples[i];
         if (r.w <= 0.001) continue;
         float age = t - r.z;
-        if (age < 0.0 || age > 3.2) continue;
+        if (age < 0.0 || age > 6.0) continue;
 
         vec2 d = uv - r.xy;
         d.x *= aspect;
@@ -236,7 +236,7 @@ float rippleH(vec2 uv, float t) {
         // 能量摊在越来越长的圆周上：1/sqrt(r)，不是指数硬砍
         float spread = 1.0 / sqrt(1.0 + dist * 3.0);
 
-        float k0 = uPitch * exp(-age * 0.90);
+        float k0 = uPitch * exp(-age * 0.55);
         float r0 = 0.10 + age * 0.10;
         float phase = k0 * r0 * log(1.0 + dist / r0);
 
@@ -389,7 +389,7 @@ void main() {
   U.uRipples = gl.getUniformLocation(prog, 'uRipples');
   U.uStartR = gl.getUniformLocation(prog, 'uStartR');
 
-  const S = { pitch:380, front:28, decay:32, refr:40, norm:100,
+  const S = { pitch:380, front:28, decay:40, refr:40, norm:100,
               shine:80, spec:90, trans:55, caus:60, bg:0, wave:0, glow:0 };
   let paused = true, tAcc = 2.0, last = performance.now();
   let needDraw = true;
