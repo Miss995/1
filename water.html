@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v11 · 18:34</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v12 · 18:45</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -245,9 +245,12 @@ float rippleH(vec2 uv, float t) {
         float omega = k * uFront * uPhaseSpd;   // 相速相对群速的倍数（2 倍是深水波的理论值）
         float phase = k * r0 * log(1.0 + dist / r0) - omega * age;
 
-        // 波包宽度 = 5 个波长（用近处的波长算），边界落在同一相位上，不会一胖一瘦
-        float W = 5.0 * 6.2831853 / k;
-        float env = exp(-pow((dist - front) / W, 2.0)) * smoothstep(0.0, 0.028, dist);
+        // 波包从 1 个波长起步，慢慢长到 5 个（始终是整数倍，边界不会一胖一瘦）
+        float nW = mix(1.0, 5.0, clamp(age * 1.5, 0.0, 1.0));
+        float W = nW * 6.2831853 / k;
+        // 中心压平的宽度跟着手指起手半径走，按下去多宽就空多宽
+        float inner = max(0.012, uRipR[i] * 0.6);
+        float env = exp(-pow((dist - front) / W, 2.0)) * smoothstep(0.0, inner, dist);
         h += sin(phase) * env * fall * spread * r.w;
 
         h += exp(-pow(dist * 26.0, 2.0)) * exp(-age * 6.0) * r.w * 1.6;
