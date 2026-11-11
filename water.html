@@ -9,7 +9,8 @@
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin:0; padding:0; height:100%; background:#0a1520; overflow:hidden;
     font-family: -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-    touch-action: none; overscroll-behavior: none; }
+    touch-action: none; overscroll-behavior: none;
+    -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   #c { display:block; width:100vw; height:100vh; }
 
   #panel {
@@ -316,6 +317,8 @@ void main() {
 <script>
 (function(){
   const cvs = document.getElementById('c');
+  cvs.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('contextmenu', e => e.preventDefault());
   const gl = cvs.getContext('webgl', { antialias:false, alpha:false, powerPreference:'high-performance' })
           || cvs.getContext('experimental-webgl');
   if (!gl) {
@@ -382,7 +385,10 @@ void main() {
   }
 
   let down = false;
+  let holdU = 0, holdV = 0, holdNext = 0;
+
   cvs.addEventListener('pointerdown', e => {
+    e.preventDefault();
     down = true;
     if (paused) {
       paused = false; needDraw = true;
@@ -390,16 +396,19 @@ void main() {
       _bp.textContent = '暂停'; _bp.classList.remove('on');
     }
     const [u,v] = uvFromEvent(e);
+    holdU = u; holdV = v;
     addRipple(u, v, 1.0);
     lastRipTime = 0;
+    holdNext = tAcc + 0.32;      // 按住不动也隔一会儿再冒一个
   });
   cvs.addEventListener('pointermove', e => {
     if (!down) return;
     const [u,v] = uvFromEvent(e);
+    holdU = u; holdV = v;
     addRipple(u, v, 0.75);
   });
   ['pointerup','pointercancel','pointerleave'].forEach(t =>
-    cvs.addEventListener(t, () => { down = false; })
+    cvs.addEventListener(t, e => { down = false; e.preventDefault && e.preventDefault(); })
   );
 
   function bind(id, key) {
@@ -464,6 +473,18 @@ void main() {
     const dt = Math.min((now - last) / 1000, 0.05);
     last = now;
     if (!paused) tAcc += dt;
+
+    // 按住不放：手指停着也继续一圈一圈往外推
+    if (down && tAcc >= holdNext) {
+      holdNext = tAcc + 0.32;
+      const i = ripIdx % RIP_N;
+      ripIdx++;
+      ripples[i*4+0] = holdU;
+      ripples[i*4+1] = holdV;
+      ripples[i*4+2] = tAcc;
+      ripples[i*4+3] = 0.55;
+    }
+
     resize();
 
     gl.uniform2f(U.uRes, cvs.width, cvs.height);
