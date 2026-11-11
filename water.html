@@ -76,16 +76,17 @@
 <div id="toggle">≡</div>
 
 <div id="panel">
-  <div class="hd"><b>涟漪参数</b><span>大浪默认关</span></div>
+  <div class="hd"><b>涟漪参数</b><span>左上有光源</span></div>
 
   <div class="row"><label>波长</label><input id="s_pitch" type="range" min="80"  max="900" value="380"><span class="val" id="v_pitch">380</span></div>
   <div class="row"><label>扩散</label><input id="s_front" type="range" min="6"   max="60"  value="28"><span class="val" id="v_front">28</span></div>
   <div class="row"><label>消散</label><input id="s_decay" type="range" min="30"  max="250" value="110"><span class="val" id="v_decay">110</span></div>
   <div class="row"><label>折射</label><input id="s_refr"  type="range" min="0"   max="100" value="40"><span class="val" id="v_refr">40</span></div>
   <div class="row"><label>坡度</label><input id="s_norm"  type="range" min="0"   max="300" value="100"><span class="val" id="v_norm">100</span></div>
-  <div class="row"><label>锐度</label><input id="s_shine" type="range" min="2"   max="200" value="60"><span class="val" id="v_shine">60</span></div>
-  <div class="row"><label>高光</label><input id="s_spec"  type="range" min="0"   max="200" value="60"><span class="val" id="v_spec">60</span></div>
-  <div class="row"><label>光向</label><input id="s_light" type="range" min="0"   max="360" value="62"><span class="val" id="v_light">62</span></div>
+  <div class="row"><label>锐度</label><input id="s_shine" type="range" min="2"   max="200" value="80"><span class="val" id="v_shine">80</span></div>
+  <div class="row"><label>高光</label><input id="s_spec"  type="range" min="0"   max="200" value="90"><span class="val" id="v_spec">90</span></div>
+  <div class="row"><label>透光</label><input id="s_trans" type="range" min="0"   max="150" value="55"><span class="val" id="v_trans">55</span></div>
+  <div class="row"><label>光斑</label><input id="s_caus"  type="range" min="0"   max="150" value="60"><span class="val" id="v_caus">60</span></div>
 
   <div class="btns">
     <button data-bg="grid" class="on">格子底</button>
@@ -108,23 +109,21 @@ precision highp float;
 
 uniform vec2  uRes;
 uniform float uTime;
-uniform float uPitch;     // 基准波数
-uniform float uFront;     // 波前扩散速度
-uniform float uDecay;     // 消散速度
-uniform float uRefr;      // 折射位移强度
-uniform float uNorm;      // 法线坡度强度
-uniform float uShine;     // 高光锐度
-uniform float uSpecPow;   // 高光亮度
-uniform float uLightA;    // 光源角度（弧度）
+uniform float uPitch;
+uniform float uFront;
+uniform float uDecay;
+uniform float uRefr;
+uniform float uNorm;
+uniform float uShine;
+uniform float uSpecPow;
+uniform float uTrans;
+uniform float uCaustic;
 uniform float uTint;
-uniform float uCrest;
 uniform float uBg;
-uniform float uWave;      // 大浪开关
+uniform float uWave;
 
-// 6 个涟漪：xy = 位置(uv 0..1)，z = 起手时间，w = 强度
 uniform vec4 uRipples[6];
 
-// ---------- 噪声（只给大浪用） ----------
 float hash21(vec2 p) {
     p = fract(p * vec2(123.34, 456.21));
     p += dot(p, p + 45.32);
@@ -156,35 +155,35 @@ float fbm(vec2 p) {
 
 // ---------- 水底 ----------
 vec3 underGrid(vec2 uv) {
-    vec3 col = mix(vec3(0.048,0.095,0.140), vec3(0.125,0.205,0.275), uv.y);
+    vec3 col = mix(vec3(0.055,0.115,0.170), vec3(0.150,0.245,0.320), uv.y);
     vec2 g = abs(fract(uv * vec2(9.0, 15.0)) - 0.5);
     float line = smoothstep(0.455, 0.500, max(g.x, g.y));
-    col += line * vec3(0.30, 0.43, 0.53) * 0.55;
+    col += line * vec3(0.42, 0.58, 0.70) * 0.62;
     float r = smoothstep(0.10, 0.0, length(uv - vec2(0.24, 0.68)));
-    col += r * vec3(0.55, 0.66, 0.72) * 0.45;
+    col += r * vec3(0.62, 0.74, 0.82) * 0.50;
     float r2 = smoothstep(0.16, 0.0, length(uv - vec2(0.78, 0.28)));
-    col += r2 * vec3(0.42, 0.36, 0.30) * 0.50;
+    col += r2 * vec3(0.48, 0.42, 0.36) * 0.55;
     return col;
 }
 
 vec3 underDots(vec2 uv) {
-    vec3 col = mix(vec3(0.068,0.088,0.125), vec3(0.145,0.185,0.245), uv.y);
+    vec3 col = mix(vec3(0.080,0.105,0.150), vec3(0.170,0.215,0.285), uv.y);
     vec2 cell = fract(uv * vec2(11.0, 17.0)) - 0.5;
     float d = smoothstep(0.21, 0.13, length(cell));
     float hue = fract(uv.x * 0.9 + uv.y * 0.55);
-    vec3 dotc = mix(vec3(0.62,0.74,0.86), vec3(0.55,0.60,0.82), hue);
-    col += d * dotc * 0.58;
+    vec3 dotc = mix(vec3(0.72,0.84,0.96), vec3(0.65,0.70,0.92), hue);
+    col += d * dotc * 0.62;
     return col;
 }
 
 vec3 underStripes(vec2 uv) {
     float s = sin(uv.x * 14.0 + uv.y * 3.0);
-    vec3 a = vec3(0.28,0.40,0.54);
-    vec3 b = vec3(0.50,0.42,0.60);
-    vec3 col = mix(a, b, s * 0.5 + 0.5) * mix(0.50, 1.0, uv.y);
+    vec3 a = vec3(0.34,0.48,0.62);
+    vec3 b = vec3(0.58,0.50,0.68);
+    vec3 col = mix(a, b, s * 0.5 + 0.5) * mix(0.55, 1.0, uv.y);
     vec2 g = abs(fract(uv * vec2(6.0, 10.0)) - 0.5);
     float line = smoothstep(0.47, 0.50, max(g.x, g.y));
-    col += line * vec3(0.72, 0.80, 0.90) * 0.30;
+    col += line * vec3(0.80, 0.88, 0.98) * 0.34;
     return col;
 }
 
@@ -194,7 +193,7 @@ vec3 under(vec2 uv) {
     else                return underStripes(uv);
 }
 
-// ---------- 大浪高度场 ----------
+// ---------- 大浪 ----------
 float waterHeight(vec2 p, float t) {
     float h = 0.0;
     h += fbm(p * 0.55 + vec2( t * 0.10, t * 0.06)) * 1.00;
@@ -202,7 +201,7 @@ float waterHeight(vec2 p, float t) {
     return h;
 }
 
-// ---------- 涟漪高度场 ----------
+// ---------- 涟漪 ----------
 float rippleH(vec2 uv, float t) {
     float h = 0.0;
     float aspect = uRes.x / uRes.y;
@@ -217,19 +216,16 @@ float rippleH(vec2 uv, float t) {
         float dist = length(d);
 
         float front = age * uFront;
-        // 单边包络：力只往外推，波前内侧早该平了
         float tail = smoothstep(front - 0.10, front, dist);
         float head = exp(-pow(max(dist - front, 0.0) * 12.0, 2.0));
         float ring = tail * head;
         float fall = exp(-age * uDecay);
 
-        // 色散：近处密、远处疏、越久越疏
         float k0 = uPitch * exp(-age * 0.90);
         float r0 = 0.10 + age * 0.10;
         float phase = k0 * r0 * log(1.0 + dist / r0);
 
         h += sin(phase) * ring * fall * r.w;
-        // 按下去那一下，中心鼓起来
         h += exp(-pow(dist * 26.0, 2.0)) * exp(-age * 6.0) * r.w * 1.6;
     }
     return h;
@@ -241,7 +237,12 @@ void main() {
     float t = uTime;
     vec2 p = (uv - 0.5) * vec2(aspect, 1.0);
 
-    // ---- 大浪（默认关，开了才有） ----
+    // 光源在画面外左上，往右下照
+    vec3 L = normalize(vec3(-0.46, 0.58, 0.67));
+    vec3 V = vec3(0.0, 0.0, 1.0);
+    vec3 lightCol = vec3(1.0, 0.97, 0.90);
+
+    // 大浪（默认关）
     vec2 gWave = vec2(0.0);
     float hWave = 0.5;
     if (uWave > 0.5) {
@@ -254,44 +255,56 @@ void main() {
         hWave = h0;
     }
 
-    // ---- 涟漪的高度场与梯度 ----
+    // 涟漪高度与梯度
     float re = 0.0006;
     float rH = rippleH(uv, uTime);
     float rx = rippleH(uv + vec2(re, 0.0), uTime);
     float ry = rippleH(uv + vec2(0.0, re), uTime);
     vec2 gRip = vec2(rx - rH, ry - rH) / re;
 
-    // ---- 折射：把底纹轻轻推歪（位移很小，不该把暗底拉成块） ----
+    // 折射位移
     vec2 off = gRip * uRefr * 0.00006 + gWave * uWave * 0.0008;
-    vec3 col = under(uv + off);
+    vec2 uvw = uv + off;
 
-    // ---- 水色 ----
-    vec3 waterCol = vec3(0.055, 0.235, 0.330);
-    col = mix(col, col * waterCol * 3.0, uTint * 0.30);
+    // ---- 水底（透亮的关键：底下被光照亮） ----
+    vec3 col = under(uvw);
 
-    // ---- 法线：只从高度场来，没有别的来源 ----
+    // 水里的光斑：跟着折射一起动，像光穿过水面打在水底
+    vec2 cp = uvw * vec2(6.5, 10.5) + vec2(t * 0.11, t * 0.07);
+    float caus = pow(vnoise(cp), 4.0) * 3.2;
+    caus += pow(vnoise(cp * 1.9 + 13.0), 6.0) * 2.4;
+    col += caus * uCaustic * vec3(0.55, 0.82, 0.98);
+
+    // 水色：薄薄一层蓝，不能压死底下的东西
+    vec3 waterCol = vec3(0.13, 0.36, 0.46);
+    col = mix(col, col * waterCol * 2.2, uTint * 0.16);
+
+    // ---- 水面法线 ----
     vec3 n = normalize(vec3(-(gRip * uNorm * 0.0040 + gWave * uWave * 0.45), 1.0));
 
-    // ---- 光 ----
-    vec3 L = normalize(vec3(cos(uLightA), sin(uLightA), 0.75));
-    float diff = max(dot(n, L), 0.0);
-    float spec = pow(diff, uShine);
+    // ---- ① 高光：光源在水面的碎倒影 ----
+    vec3 Hv = normalize(L + V);
+    float spec = pow(max(dot(n, Hv), 0.0), uShine);
+    col += spec * uSpecPow * lightCol;
 
-    // 高光：只在法线对着光源时才亮，天然就是一半
-    col += spec * uSpecPow * vec3(1.0, 0.99, 0.95);
+    // ---- ② 透光：波峰薄的地方，光穿过去 ----
+    float crestH = max(rH, 0.0) * 0.5 + 0.5;
+    float trans = pow(max(dot(n, L), 0.0), 1.5) * smoothstep(-0.05, 0.95, crestH);
+    col += trans * uTrans * vec3(0.52, 0.80, 0.96);
 
-    // ---- 波峰微亮：只加亮，不压暗 ----
-    col += max(rH, 0.0) * uCrest * vec3(0.50, 0.68, 0.90);
-    col += max(hWave - 0.62, 0.0) * uWave * 0.12 * vec3(0.50, 0.68, 0.90);
+    // ---- ③ 极弱的整体环境反光（俯视只有百分之几，不该看得见） ----
+    vec3 R = reflect(-V, n);
+    float rim = pow(1.0 - max(dot(n, V), 0.0), 5.0);
+    col += rim * smoothstep(-0.1, 0.9, R.y) * 0.12 * vec3(0.40, 0.62, 0.86);
 
     // ---- 暗角 ----
     vec2 vg = uv - 0.5;
-    float vig = smoothstep(0.90, 0.18, length(vg * vec2(1.0, 0.92)));
-    col *= mix(0.55, 1.0, vig);
+    float vig = smoothstep(0.98, 0.24, length(vg * vec2(1.0, 0.92)));
+    col *= mix(0.70, 1.0, vig);
 
-    // ---- 色调映射 ----
-    col = col / (col + vec3(0.82));
-    col = pow(col, vec3(0.90));
+    // ---- 色调映射（往亮里拉） ----
+    col = col / (col + vec3(0.70));
+    col = pow(col, vec3(0.84));
 
     gl_FragColor = vec4(col, 1.0);
 }
@@ -313,6 +326,7 @@ void main() {
     gl.compileShader(s);
     if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
       console.error('SHADER ERR:', gl.getShaderInfoLog(s));
+      document.title = 'SHADER ERR';
     }
     return s;
   }
@@ -334,16 +348,15 @@ void main() {
 
   const U = {};
   ['uRes','uTime','uPitch','uFront','uDecay','uRefr','uNorm','uShine',
-   'uSpecPow','uLightA','uTint','uCrest','uBg','uWave']
+   'uSpecPow','uTrans','uCaustic','uTint','uBg','uWave']
     .forEach(n => U[n] = gl.getUniformLocation(prog, n));
   U.uRipples = gl.getUniformLocation(prog, 'uRipples');
 
   const S = { pitch:380, front:28, decay:110, refr:40, norm:100,
-              shine:60, spec:60, light:62, bg:0, wave:0 };
+              shine:80, spec:90, trans:55, caus:60, bg:0, wave:0 };
   let paused = true, tAcc = 2.0, last = performance.now();
   let needDraw = true;
 
-  // ---------- 涟漪 ----------
   const RIP_N = 6;
   const ripples = new Float32Array(RIP_N * 4);
   let ripIdx = 0, lastRipTime = 0;
@@ -386,7 +399,6 @@ void main() {
     cvs.addEventListener(t, () => { down = false; })
   );
 
-  // ---------- 滑杆 ----------
   function bind(id, key) {
     const el = document.getElementById('s_' + id);
     const out = document.getElementById('v_' + id);
@@ -396,7 +408,7 @@ void main() {
   }
   bind('pitch','pitch'); bind('front','front'); bind('decay','decay');
   bind('refr','refr');   bind('norm','norm');   bind('shine','shine');
-  bind('spec','spec');   bind('light','light');
+  bind('spec','spec');   bind('trans','trans'); bind('caus','caus');
 
   document.querySelectorAll('[data-bg]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -460,9 +472,9 @@ void main() {
     gl.uniform1f(U.uNorm, S.norm / 100);
     gl.uniform1f(U.uShine, S.shine);
     gl.uniform1f(U.uSpecPow, S.spec / 100);
-    gl.uniform1f(U.uLightA, S.light * Math.PI / 180);
+    gl.uniform1f(U.uTrans, S.trans / 100);
+    gl.uniform1f(U.uCaustic, S.caus / 100);
     gl.uniform1f(U.uTint, 0.55);
-    gl.uniform1f(U.uCrest, 0.08);
     gl.uniform1f(U.uBg, S.bg);
     gl.uniform1f(U.uWave, S.wave);
     gl.uniform4fv(U.uRipples, ripples);
