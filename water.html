@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v9 · 17:49</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v10 · 17:54</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -236,13 +236,14 @@ float rippleH(vec2 uv, float t) {
         // 能量摊在越来越长的圆周上：1/sqrt(r)，不是指数硬砍
         float spread = 1.0 / sqrt(1.0 + dist * 3.0);
 
-        // 真波：波数固定，波峰沿直线匀速往外
+        // 对数相位：近处密、远处疏（这个不能丢）
+        // 但 k 固定不随时间变，波峰轨迹才是干净的
+        float r0 = 0.12;
         float k = uPitch;
         float omega = k * uFront * 2.0;      // 相速 = 2 倍群速（深水波就是这样）
-        float phase = k * dist - omega * age;
+        float phase = k * r0 * log(1.0 + dist / r0) - omega * age;
 
-        // 波包：整组以 uFront 往外传，宽度随扩散慢慢变胖
-        // 宽度钉成 5 个波长，边界永远落在同一个相位上，不会一胖一瘦
+        // 波包宽度 = 5 个波长（用近处的波长算），边界落在同一相位上，不会一胖一瘦
         float W = 5.0 * 6.2831853 / k;
         float env = exp(-pow((dist - front) / W, 2.0)) * smoothstep(0.0, 0.028, dist);
         h += sin(phase) * env * fall * spread * r.w;
@@ -386,7 +387,7 @@ void main() {
   U.uRipples = gl.getUniformLocation(prog, 'uRipples');
   U.uRipR = gl.getUniformLocation(prog, 'uRipR');
 
-  const S = { pitch:380, front:28, decay:40, refr:40, norm:100,
+  const S = { pitch:180, front:28, decay:40, refr:40, norm:100,
               shine:80, spec:90, trans:55, caus:60, bg:0, wave:0, glow:0 };
   let paused = true, tAcc = 2.0, last = performance.now();
   let needDraw = true;
