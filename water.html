@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v5 · 17:21</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v6 · 17:21</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -239,7 +239,7 @@ float rippleH(vec2 uv, float t) {
         float k0 = uPitch * exp(-age * 0.55);
         float r0 = 0.10 + age * 0.10;
         // 相位要带时间项，否则圈只是空间里的静态图案，被包络扫过去就留在原地融化
-        float omega = 6.0 + sqrt(max(k0, 1.0)) * 1.15;
+        float omega = k0 * uFront * 1.02;
         float phase = k0 * r0 * log(1.0 + dist / r0) - age * omega;
 
         // 一组波连着往外传，不是单独一圈
