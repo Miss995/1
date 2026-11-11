@@ -301,8 +301,9 @@ void main() {
     vec3 nSpec = normalize(n + vec3(jit * 0.11, 0.0));
     vec3 Hv = normalize(L + V);
     float spec = pow(max(dot(nSpec, Hv), 0.0), uShine);
-    // 已经亮到 1 的地方加不动了：高光是替换，不是无限叠加
-    col += spec * uSpecPow * lightCol * (1.0 - min(col, vec3(1.0)));
+    // 高光是光源的像：那一小块直接换成亮的，不是往底色上加
+    float sInt = clamp(spec * uSpecPow, 0.0, 1.0);
+    col = mix(col, lightCol * 1.55, sInt * 0.90);
 
     // ---- ② 透光：波峰薄的地方，光穿过去 ----
     float crestH = max(rH, 0.0) * 0.5 + 0.5;
@@ -509,17 +510,6 @@ void main() {
     const dt = Math.min((now - last) / 1000, 0.05);
     last = now;
     if (!paused) tAcc += dt;
-
-    // 按住不放：手指停着也继续一圈一圈往外推
-    if (down && tAcc >= holdNext) {
-      holdNext = tAcc + 0.32;
-      const i = ripIdx % RIP_N;
-      ripIdx++;
-      ripples[i*4+0] = holdU;
-      ripples[i*4+1] = holdV;
-      ripples[i*4+2] = tAcc;
-      ripples[i*4+3] = 0.55;
-    }
 
     resize();
 
