@@ -285,7 +285,7 @@ void main() {
     vec2 rgrad = vec2(rx - r0, ry - r0) / re;
 
     float amp = uAmp * 0.0032;
-    vec2 off = grad * amp * uRefr * 0.32 + rgrad * uRip * 0.00004;
+    vec2 off = grad * amp * uRefr * 0.32 + rgrad * uRip * 0.00008;
 
     // 三通道色散
     vec3 colR = under(uv + off * 1.005);
@@ -300,7 +300,7 @@ void main() {
 
     // ---------- 体积感靠亮面 ----------
     // 波峰朝向天的那一面泛亮，波谷不压黑 —— 暗只会让它看着像洞
-    float crest = pow(max(h0 - 0.62, 0.0), 1.7) * 0.42 + rippleLit(uv, uTime) * uRip * 0.13;
+    float crest = pow(max(h0 - 0.62, 0.0), 1.7) * 0.42 + rippleLit(uv, uTime) * uRip * 0.45;
     col += crest * vec3(0.42, 0.62, 0.86) * 0.55;
 
     // ---------- 法线 ----------
@@ -322,8 +322,8 @@ void main() {
     col += spec * uSpec * vec3(1.0, 0.99, 0.96) * 2.6;
 
     // 宽高光（柔）—— 只用平滑那层，不跟着碎点糊
-    float spec2 = pow(max(dot(nWave, L), 0.0), 46.0);
-    col += spec2 * uSpec * vec3(0.45, 0.66, 0.86) * 0.28;
+    float spec2 = pow(max(dot(nWave, L), 0.0), 20.0);
+    col += spec2 * uSpec * vec3(0.45, 0.66, 0.86) * 0.42;
 
     // 水下焦散
     if (uCaustics > 0.5) {
