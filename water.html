@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v79 · 15:50</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v80 · 15:57</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -247,6 +247,17 @@ float waveSin(float x) {
     // 退回光滑 sin。abs(sin) 虽然导数有限，但零点处导数不连续 = 数学尖点，
     // 四波叠加后每个交叉点都是折痕，整片会变成折纸/钻石切面。
     return sin(x);
+}
+
+// 网格专用的高度场：只要三个方向接近的波。
+// 水面渲染用的 waterHeight 是四个方向乱叠的 —— 那个用来做起伏好看，
+// 但拿它切等值线就是一团乱麻（线会打结、绕小圈）。真实海面是风推着一个方向。
+float gridHeight(vec2 p, float t) {
+    float h = 0.0;
+    h += sin(dot(p, vec2( 0.96,  0.28)) * 2.1 + t * 0.35) * 0.60;
+    h += sin(dot(p, vec2( 0.88,  0.47)) * 3.4 - t * 0.28) * 0.28;
+    h += sin(dot(p, vec2( 0.99, -0.14)) * 4.9 + t * 0.22) * 0.12;
+    return h * 0.42 + 0.5;
 }
 
 // Worley 细胞噪声：把平面切成一块一块的多边形。
@@ -445,8 +456,8 @@ void main() {
     // 两组等值线相交 → 一块块多边形，而且整张网跟着波一起走
     // （这才是"水面"；Worley 是任意细胞，跟波没关系）。
     vec2 pp2 = p * 2.5;   // 细条纹 = 明暗层次多 = 好调体积感
-    float h1 = waterHeight(pp2, t);
-    float h2 = waterHeight(vec2(pp2.y, -pp2.x), t);
+    float h1 = gridHeight(pp2, t);
+    float h2 = gridHeight(vec2(pp2.y, -pp2.x), t);
     float n1 = h1 * uSlice * 3.0;
     float n2 = h2 * uSlice * 3.0;
     float f1 = fract(n1), f2 = fract(n2);
