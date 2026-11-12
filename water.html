@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v77 · 15:42</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v78 · 15:44</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -444,7 +444,7 @@ void main() {
     // 近似：把高度场旋转 90°，它的等值线方向正好跟原来的梯度线重合。
     // 两组等值线相交 → 一块块多边形，而且整张网跟着波一起走
     // （这才是"水面"；Worley 是任意细胞，跟波没关系）。
-    vec2 pp2 = p * 0.7;   // 网格要低频：0.7 是把波放大约三倍半，切出来才是块不是细条
+    vec2 pp2 = p * 2.5;   // 细条纹 = 明暗层次多 = 好调体积感
     float h1 = waterHeight(pp2, t);
     float h2 = waterHeight(vec2(pp2.y, -pp2.x), t);
     float n1 = h1 * uSlice * 3.0;
@@ -454,13 +454,18 @@ void main() {
     float d2 = min(f2, 1.0 - f2);          // 到最近一条梯度线的距离
     float border = smoothstep(0.0, 0.035, min(d1, d2));   // 0=在线上，1=格子里
     float cid = floor(n1) * 37.0 + floor(n2) * 91.0;     // 两条线的层级编号 = 格子 id
-    float cellShade = (hash21(vec2(cid, 3.7)) - 0.5) * 0.46;
+    // 每格的亮度 = 这一格的水面朝向光源的多少（不是随机数）
+    // 法线取该点梯度 —— 格子是被等值线圈出来的，一圈之内朝向基本一致，所以看着是一块块纯色。
+    vec3 nGrid = normalize(vec3(-(gWave * 3.0 + gRip * 0.02), 1.0));
+    float litGrid = dot(nGrid, L);
+    float litQ = floor(litGrid * 4.0) / 4.0;                  // 量化 4 档：明暗泾渭分明
+    float cellShade = clamp(litQ * 0.92, -0.23, 0.23);
     float shadeWave = cellShade;
 
     // ---- 网格调试模式：只画网格本身，其他全关 ----
     if (uDbgGrid > 0.5) {
         float lineLo = 1.0 - smoothstep(0.0, 0.030, min(d1, d2));   // 0.010 太细会断成点
-        float gShade = hash21(vec2(cid, 3.7)) * 0.30 + 0.06;   // 每格一个灰度
+        float gShade = clamp(litQ * 0.9 + 0.45, 0.05, 0.95);   // 每格按朝向的灰度
         vec3 dbg = mix(vec3(gShade), vec3(1.0, 0.92, 0.72), lineLo);
         gl_FragColor = vec4(dbg, 1.0);
         return;
