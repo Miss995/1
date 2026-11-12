@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v53 · 13:19</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v54 · 13:22</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -358,7 +358,7 @@ void main() {
     float bandL = abs(fract(lit * 7.0) - 0.5) * 2.0;
     float caus = 1.0 - smoothstep(0.0, 0.12, bandL);
     // 涟漪自己也有（波峰处）
-    caus += pow(max(rH, 0.0) * 0.55, 2.0) * 0.5;
+    caus += pow(max(rH, 0.0) * 1.8, 2.0) * 0.6;
     col += caus * uCaustic * vec3(0.42, 0.86, 0.86) * 0.62;
 
     // 水色：薄薄一层蓝，不能压死底下的东西
@@ -398,12 +398,14 @@ void main() {
     // 涟漪：量压在小范围，别抢戏
     // 水面不投影。亮是反光增强，暗只是看到更深的水 ——
     // 量级要小，而且不对称：往上给得出，往下压不动太多。
-    // 明暗要"面片感"：每个波峰是一道折痕，水面被折成一块块小镜子，
-    // 面片之间硬切。lit 是上面光斑那段已经算好的，这里直接复用，别重定义。
-    float facetQ = floor(lit * 5.0) / 5.0 + 0.1;      // 5 个面，硬切
+    // 面片感：每个波峰是一道折痕，水面被折成一块块小镜子，面片之间硬切。
+    // 涟漪自己也要有面片 —— 不然只剩折射，整片会糊成一坨"液态"。
+    float ripLit   = clamp(-(gRip.x * L.x + gRip.y * L.y) * 0.22, 0.0, 1.0);
+    float facetRip = floor(ripLit * 4.0) / 4.0 + 0.125;   // 4 个面，硬切
+    float shadeRip = (facetRip - 0.5) * 0.30;
+    // 大浪的面片（大浪关着时 lit=0，这里是稳定值不参与）
+    float facetQ = floor(lit * 5.0) / 5.0 + 0.1;
     float shadeWave = (facetQ - 0.5) * 0.36;
-    // 涟漪是小起伏，保持平滑，不做面片
-    float shadeRip  = clamp(-(gRip.x * L.x + gRip.y * L.y) * uSurfShade * 0.0028, -0.05, 0.06);
     col *= (1.0 + shadeRip + shadeWave);
 
     // ---- ④ 极弱的整体环境反光（俯视只有百分之几，不该看得见） ----
