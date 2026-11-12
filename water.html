@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v58 · 13:29</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v59 · 13:30</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -240,8 +240,9 @@ vec3 under(vec2 uv) {
 // 波峰要尖，不能是圆弧。表面张力会把峰顶拉出棱 —— 有了棱，坡度才突变，
 // 明暗才有硬边；sin 太光滑，切几档都还是渐变。
 float waveSin(float x) {
-    float s = sin(x);
-    return sign(s) * pow(abs(s), 0.55);
+    // 全波整流：峰和谷都是尖的，但导数只有 ±2（有限）——
+    // 之前用 pow(|sin|,0.55)，在 0 附近导数无穷大，梯度一炸就成裂纹了。
+    return abs(sin(x)) * 2.0 - 1.0;
 }
 
 float waterHeight(vec2 p, float t) {
