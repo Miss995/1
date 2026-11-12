@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v57 · 13:27</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v58 · 13:29</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -237,6 +237,13 @@ vec3 under(vec2 uv) {
 }
 
 // ---------- 大浪 ----------
+// 波峰要尖，不能是圆弧。表面张力会把峰顶拉出棱 —— 有了棱，坡度才突变，
+// 明暗才有硬边；sin 太光滑，切几档都还是渐变。
+float waveSin(float x) {
+    float s = sin(x);
+    return sign(s) * pow(abs(s), 0.55);
+}
+
 float waterHeight(vec2 p, float t) {
     // 不用 fbm。fbm 的峰是孤立鼓包 —— 在鼓包上切等值线就是一个个闭合的环，
     // 明暗和高光也各自围着包心转，三样东西看起来各跑各的。
@@ -244,10 +251,10 @@ float waterHeight(vec2 p, float t) {
     // 等值线连成片、明暗顺着条纹、高光也顺着条纹，三样自然对齐。
     // 顺带：4 次 sin 比 fbm 那串噪声便宜得多。
     float h = 0.0;
-    h += sin(dot(p, vec2( 0.85,  0.28)) * 5.2  + t * 1.10) * 0.55;
-    h += sin(dot(p, vec2(-0.42,  0.80)) * 8.1  + t * 0.85) * 0.32;
-    h += sin(dot(p, vec2( 0.66, -0.62)) * 12.4 + t * 1.35) * 0.19;
-    h += sin(dot(p, vec2(-0.24, -0.92)) * 17.0 + t * 1.02) * 0.11;
+    h += waveSin(dot(p, vec2( 0.85,  0.28)) * 5.2  + t * 1.10) * 0.55;
+    h += waveSin(dot(p, vec2(-0.42,  0.80)) * 8.1  + t * 0.85) * 0.32;
+    h += waveSin(dot(p, vec2( 0.66, -0.62)) * 12.4 + t * 1.35) * 0.19;
+    h += waveSin(dot(p, vec2(-0.24, -0.92)) * 17.0 + t * 1.02) * 0.11;
     return clamp(h * 0.42 + 0.5, 0.0, 1.0);   // 归一到 0..1
 }
 
