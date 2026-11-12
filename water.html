@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v66 · 13:55</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v67 · 13:58</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -421,8 +421,11 @@ void main() {
     col *= (1.0 + shadeRip + shadeWave);
 
     // 折痕处的光：两个面交界，光被对折得最厉害 —— 真实水面的焦散线就是这条。
-    float crease = 1.0 - smoothstep(0.0, 0.07, abs(gWLn));
-    col += crease * uCaustic * vec3(0.88, 0.97, 1.0) * 0.70;
+    // 三条要求分开调：亮度、色调、锐度
+    // 锐度：前 0.030 是全亮实心，只在 0.030~0.055 之间快速掉 → 才有"边"
+    float crease = 1.0 - smoothstep(0.030, 0.055, abs(gWLn));
+    // 色调：青里带白（光穿过水的颜色），不是纯白
+    col += crease * uCaustic * vec3(0.55, 0.92, 0.95) * 1.15;
 
     // ---- ④ 极弱的整体环境反光（俯视只有百分之几，不该看得见） ----
     vec3 R = reflect(-V, n);
