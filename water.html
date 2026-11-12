@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v45 · 12:45</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v46 · 12:49</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -238,13 +238,18 @@ vec3 under(vec2 uv) {
 
 // ---------- 大浪 ----------
 float waterHeight(vec2 p, float t) {
+    // 不用 fbm。fbm 的峰是孤立鼓包 —— 在鼓包上切等值线就是一个个闭合的环，
+    // 明暗和高光也各自围着包心转，三样东西看起来各跑各的。
+    // 真实水面是几条方向不同的波叠在一起：起伏是连续的条纹网络，
+    // 等值线连成片、明暗顺着条纹、高光也顺着条纹，三样自然对齐。
+    // 顺带：4 次 sin 比 fbm 那串噪声便宜得多。
     float h = 0.0;
-    // 浪必须是"长脊"，不能是"圆包"。
-    // 圆包上切等值线 = 一个个孤立的环（各跑各的）；长脊上切 = 贯穿的带子（连得起来）。
-    // 所以 x 压扁、y 拉高，把圆包拉成横着的长条。
-    h += fbm(vec2(p.x * 0.42, p.y * 1.55) + vec2( t * 0.10, t * 0.06)) * 1.00;
-    h += fbm(vec2(p.x * 1.10, p.y * 3.20) - vec2( t * 0.18,-t * 0.12)) * 0.48;
-    return h;
+    h += sin(dot(p, vec2( 0.85,  0.28)) * 5.2  + t * 1.10) * 0.55;
+    h += sin(dot(p, vec2(-0.42,  0.80)) * 8.1  + t * 0.85) * 0.32;
+    h += sin(dot(p, vec2( 0.66, -0.62)) * 12.4 + t * 1.35) * 0.19;
+    h += sin(dot(p, vec2(-0.24, -0.92)) * 17.0 + t * 1.02) * 0.11;
+    return clamp(h * 0.42 + 0.5, 0.0, 1.0);   // 归一到 0..1
+}
 }
 
 // ---------- 涟漪 ----------
