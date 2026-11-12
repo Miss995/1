@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v27 · 19:49</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v28 · 10:41</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -89,6 +89,7 @@
   <div class="row"><label>锐度</label><input id="s_shine" type="range" min="2"   max="200" value="80"><span class="val" id="v_shine">80</span></div>
   <div class="row"><label>高光</label><input id="s_spec"  type="range" min="0"   max="200" value="90"><span class="val" id="v_spec">90</span></div>
   <div class="row"><label>透光</label><input id="s_trans" type="range" min="0"   max="150" value="55"><span class="val" id="v_trans">55</span></div>
+  <div class="row"><label>波面</label><input id="s_surf"  type="range" min="0"   max="300" value="100"><span class="val" id="v_surf">100</span></div>
   <div class="row"><label>光斑</label><input id="s_caus"  type="range" min="0"   max="150" value="60"><span class="val" id="v_caus">60</span></div>
 
   <div class="btns">
@@ -122,6 +123,7 @@ uniform float uNorm;
 uniform float uShine;
 uniform float uSpecPow;
 uniform float uTrans;
+uniform float uSurfShade;
 uniform float uCaustic;
 uniform float uTint;
 uniform float uBg;
@@ -334,7 +336,15 @@ void main() {
     vec3 poolCol = vec3(0.30, 0.74, 0.72);
     col = mix(col, poolCol * (0.45 + col * 1.05), trans * uTrans * 0.55);
 
-    // ---- ③ 极弱的整体环境反光（俯视只有百分之几，不该看得见） ----
+    // ---- ③ 波面明暗：每面小镜子反的东西不一样 ----
+    // 不是阴影 —— 水面不挡光。坡面朝天那一侧反的是天（亮），
+    // 背过去那一侧反的是对岸和水底（暗）。连续渐变，没有一条硬边。
+    // 用梯度在光向(水平分量)上的投影算坡面朝向，量压在 ±12% 以内。
+    float facing = gRip.x * L.x + gRip.y * L.y;
+    float shade = clamp(facing * uSurfShade * 0.0028, -0.12, 0.12);
+    col *= (1.0 + shade);
+
+    // ---- ④ 极弱的整体环境反光（俯视只有百分之几，不该看得见） ----
     vec3 R = reflect(-V, n);
     float rim = pow(1.0 - max(dot(n, V), 0.0), 5.0);
     col += rim * smoothstep(-0.1, 0.9, R.y) * 0.12 * vec3(0.40, 0.62, 0.86);
@@ -397,9 +407,10 @@ void main() {
   U.uRipples = gl.getUniformLocation(prog, 'uRipples');
   U.uPhaseSpd = gl.getUniformLocation(prog, 'uPhaseSpd');
   U.uRipR = gl.getUniformLocation(prog, 'uRipR');
+  U.uSurfShade = gl.getUniformLocation(prog, 'uSurfShade');
 
   const S = { pitch:180, spd:200, front:28, decay:8, refr:40, norm:100,
-              shine:80, spec:90, trans:55, caus:60, bg:0, wave:0, glow:0 };
+              shine:80, spec:90, trans:55, caus:60, surf:100, bg:0, wave:0, glow:0 };
   let paused = true, tAcc = 2.0, last = performance.now();
   let needDraw = true;
 
@@ -489,6 +500,7 @@ void main() {
   bind('pitch','pitch'); bind('spd','spd'); bind('front','front'); bind('decay','decay');
   bind('refr','refr');   bind('norm','norm');   bind('shine','shine');
   bind('spec','spec');   bind('trans','trans'); bind('caus','caus');
+  bind('surf','surf');
 
   document.querySelectorAll('[data-bg]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -563,6 +575,7 @@ void main() {
     gl.uniform1f(U.uSpecPow, S.spec / 100);
     gl.uniform1f(U.uTrans, S.trans / 100);
     gl.uniform1f(U.uCaustic, S.caus / 100);
+    gl.uniform1f(U.uSurfShade, S.surf / 100);
     gl.uniform1f(U.uTint, 0.55);
     gl.uniform1f(U.uBg, S.bg);
     gl.uniform1f(U.uWave, S.wave);
