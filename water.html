@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v63 · 13:36</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v64 · 13:45</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -410,15 +410,11 @@ void main() {
     // 涟漪：小起伏，保持平滑。硬切会把它碎成渣（面片只给大浪）。
     float shadeRip  = clamp(-(gRip.x * L.x + gRip.y * L.y) * uSurfShade * 0.0015, -0.05, 0.06);
     // 大浪：每个波峰是一道折痕，水面被折成一块块小镜子，面片之间硬切
-    // A 方案：量化亮度。每档 88% 是平台（一个面），剩 12% 用来跳档 ——
-    // 看着一块一块的，接缝是软的（不是刀切，也不是抹平）。波形不动，只动照光。
-    float quant    = lit * 5.0;
-    float qF       = floor(quant);
-    float softEdge = smoothstep(0.0, 0.12, fract(quant));
-    float facet    = (qF + softEdge) / 5.0;
-    // 光斑不掺第二种颜色：跟着明暗走，只在最亮那一档叠白
-    float causBright = step(0.80, facet);
-    float shadeWave = (facet - 0.45) * 0.40;
+    // 面片 = 空间被波切开，不是"亮度分几档"。
+    // 每个波从峰到谷，朝光的半边和背光的半边是两个面，中间一条线。
+    // 关键是"二值"：同一个面里亮度一样，所以不会一路渐变。
+    float facing = step(0.0, -(gWave.x * L.x + gWave.y * L.y));
+    float shadeWave = (facing - 0.5) * 0.46;          // 只有两档：-23% / +23%
     col *= (1.0 + shadeRip + shadeWave);
     col += causBright * uCaustic * vec3(0.90, 0.98, 1.0) * 0.55;
 
