@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v86 · 17:03</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v87 · 17:23</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -506,10 +506,14 @@ void main() {
     // 迎光 / 背光：看 litGrid 相对平静水面（L.z=0.67）的偏移。
     // 关键是符号 —— 波峰的左坡和右坡法线方向相反，不是"大小不同"。
     // 之前量化 6 档全落在一档里，所以整个波峰都成了迎光面。
-    float facing = litGrid - 0.66;
-    // 迎光面反射天空 → 偏白；背光面透出水下 → 偏水色。这是两个颜色，不是同一个颜色加亮加暗。
-    float mixT = clamp(facing * 1.6, -1.0, 1.0) * 0.5 + 0.5;   // 2.8 会大面积 clamp 到 ±1，只剩窄过渡带
-    vec3 shadeTint = mix(vec3(0.20, 0.44, 0.52), vec3(0.90, 0.96, 1.00), mixT);   // 背光别做黑，是水下青绿不是洞
+    // 判据换掉：不是拿"亮度值"当明暗（那个是连续渐变的，暗面会挤在坡面中线一条），
+    // 而是拿"坡朝哪边"—— 沿主波方向看梯度的符号，符号一变整个坡面就翻。
+    float slopeMag = length(gGrid);
+    float slopeDir = slopeMag > 1e-4 ? dot(gGrid / slopeMag, vec2(0.96, 0.28)) : 0.0;
+    float facing = smoothstep(-0.12, 0.12, -slopeDir);   // 窄过渡，不留就成折纸
+    // 迎光面反射天空 → 偏白；背光面透出水下 → 偏青。两个颜色，不是同一个颜色加亮加暗。
+    float mixT = facing;
+    vec3 shadeTint = mix(vec3(0.20, 0.44, 0.52), vec3(0.90, 0.96, 1.00), mixT);
     float shadeWave = 0.0;
 
     // ---- 网格调试模式：只画网格本身，其他全关 ----
