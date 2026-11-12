@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v36 · 12:15</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v37 · 12:18</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -346,8 +346,12 @@ void main() {
     float caus = 1.0 - smoothstep(0.0, 0.055, ce);            // 硬边折线
     caus *= 0.55 + 0.45 * (1.0 - smoothstep(0.0, 0.030, ce2));
     // 没有波就没有聚焦 —— 平静水面底下必须一点光斑都没有，不留底
-    float causFocus = smoothstep(0.0, 0.45, rH);
-    col += caus * uCaustic * causFocus * vec3(0.42, 0.86, 0.86) * 0.72;
+    // 门槛要抬起来：波高不到 0.15 一律不亮，到 0.9 才满亮。
+    // 之前 0.45 就满亮，涟漪尾巴那点起伏早就超了 —— 所以整屏都算"有波"。
+    // 再平方收紧一次，让只有真正的波峰才聚焦出亮纹。
+    float causFocus = smoothstep(0.15, 0.90, rH);
+    causFocus *= causFocus;
+    col += caus * uCaustic * causFocus * vec3(0.42, 0.86, 0.86) * 0.45;
 
     // 水色：薄薄一层蓝，不能压死底下的东西
     vec3 waterCol = vec3(0.13, 0.36, 0.46);
