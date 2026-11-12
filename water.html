@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v38 · 12:19</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v39 · 12:22</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -353,9 +353,12 @@ void main() {
     // 门槛要抬起来：波高不到 0.15 一律不亮，到 0.9 才满亮。
     // 之前 0.45 就满亮，涟漪尾巴那点起伏早就超了 —— 所以整屏都算"有波"。
     // 再平方收紧一次，让只有真正的波峰才聚焦出亮纹。
-    float causFocus = smoothstep(0.15, 0.90, rH);
-    causFocus *= causFocus;
-    col += caus * uCaustic * causFocus * vec3(0.42, 0.86, 0.86) * 0.60;
+    // 涟漪：波峰处亮（门槛别抬太高，0.05 起步够用了）
+    float causFocus = smoothstep(0.05, 0.45, rH);
+    // 大浪：浪的边缘坡最陡，那里才该聚光 —— 不跟大浪绑的话，开大浪也看不见光斑
+    float waveSlope = length(gWave);
+    causFocus = max(causFocus, smoothstep(0.012, 0.075, waveSlope));
+    col += caus * uCaustic * causFocus * vec3(0.42, 0.86, 0.86) * 0.62;
 
     // 水色：薄薄一层蓝，不能压死底下的东西
     vec3 waterCol = vec3(0.13, 0.36, 0.46);
@@ -369,12 +372,14 @@ void main() {
     // 光源是固定的（左上那个 L）。碎光靠的是法线本身的细小起伏，
     // 不是拿随机噪声往各方向推 —— 那样会让整圈都亮，看着像"光到处乱照"。
     // 所以扰动幅度砍到 1/3，pow 提上去：只有真正对准 H 的地方才亮。
-    vec2 jit  = vec2(vnoise(uv * 210.0 + vec2(rH * 45.0, t * 0.28)),
-                     vnoise(uv * 210.0 + vec2(9.1, rH * 45.0 - t * 0.24))) - 0.5;
-    vec3 nSpec = normalize(n + vec3(jit * 0.028, 0.0));
+    // 高光长在真实法线上，不靠随机噪声撒点 —— 那样只会碎成渣。
+    // 噪声只留极小一点（0.008），作用是让亮带边缘别死板，不是用来"打碎"。
+    vec2 jit = vec2(vnoise(uv * 260.0 + vec2(rH * 30.0, t * 0.22)),
+                    vnoise(uv * 260.0 + vec2(7.7, rH * 30.0 - t * 0.20))) - 0.5;
+    vec3 nSpec = normalize(n + vec3(jit * 0.008, 0.0));
     vec3 Hv = normalize(L + V);
     float rawSpec = max(dot(nSpec, Hv), 0.0);
-    float spec = pow(rawSpec, 200.0 + uShine * 3.6) * 2.6;
+    float spec = pow(rawSpec, 55.0 + uShine * 1.4) * 1.9;
     spec = clamp(spec, 0.0, 1.0);
     col = mix(col, lightCol * 2.05, spec * clamp(uSpecPow, 0.0, 1.0) * 0.95);
 
