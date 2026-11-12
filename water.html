@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v85 · 16:52</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v86 · 17:03</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -501,15 +501,15 @@ void main() {
     // 法线用同一套波的解析梯度：不依赖「大浪」滑杆（那个默认是 0，gWave 一直是 0，
     // 所以之前法线竖直、每格亮度一样，看着就是平的）。
     vec2 gGrid = waterGrad(pp2, t);
-    vec3 nGrid = normalize(vec3(-gGrid * 0.12, 1.0));         // 0.12 是压一下：k 到 30，梯度量级很大
+    vec3 nGrid = normalize(vec3(-gGrid * 0.05, 1.0));         // 0.12 太陡(法线斜到50°)，梯度跳动剧烈；0.05 平缓些
     float litGrid = dot(nGrid, L);
     // 迎光 / 背光：看 litGrid 相对平静水面（L.z=0.67）的偏移。
     // 关键是符号 —— 波峰的左坡和右坡法线方向相反，不是"大小不同"。
     // 之前量化 6 档全落在一档里，所以整个波峰都成了迎光面。
-    float facing = litGrid - 0.62;
+    float facing = litGrid - 0.66;
     // 迎光面反射天空 → 偏白；背光面透出水下 → 偏水色。这是两个颜色，不是同一个颜色加亮加暗。
-    float mixT = clamp(facing * 2.8, -1.0, 1.0) * 0.5 + 0.5;
-    vec3 shadeTint = mix(vec3(0.09, 0.32, 0.40), vec3(0.93, 0.97, 1.00), mixT);
+    float mixT = clamp(facing * 1.6, -1.0, 1.0) * 0.5 + 0.5;   // 2.8 会大面积 clamp 到 ±1，只剩窄过渡带
+    vec3 shadeTint = mix(vec3(0.20, 0.44, 0.52), vec3(0.90, 0.96, 1.00), mixT);   // 背光别做黑，是水下青绿不是洞
     float shadeWave = 0.0;
 
     // ---- 网格调试模式：只画网格本身，其他全关 ----
@@ -529,7 +529,7 @@ void main() {
     float caust = (1.0 - border) * caustMask * uCaustic;
     col += caust * vec3(0.88, 0.98, 1.0) * 1.10;
     col *= (1.0 + shadeRip);
-    col = mix(col, shadeTint, 0.42 * border);   // border=0 在线上不受影响
+    col = mix(col, shadeTint, 0.30 * border);   // border=0 在线上不受影响
 
 
 
