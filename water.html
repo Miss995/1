@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v34 · 11:59</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v35 · 12:06</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -313,10 +313,12 @@ void main() {
     // ---- 水底（透亮的关键：底下被光照亮） ----
     vec3 col = under(uvw);
 
-    // 水里的光斑：跟着折射一起动，像光穿过水面打在水底
-    vec2 cp = uvw * vec2(9.0, 14.0);
-    float caus = causticNet(cp, t) * 1.9 + causticNet(cp * 1.8 + 5.0, t) * 1.0;
-    col += caus * uCaustic * vec3(0.42, 0.86, 0.86);
+    // 水里的光斑：光穿过波峰被聚焦打在水底 —— 波峰处聚成细亮纹，平坦处几乎没有。
+    // 频率要高（一屏几十条），强度要克制，而且必须跟波挂钩。
+    vec2 cp = uvw * vec2(26.0, 40.0);
+    float caus = causticNet(cp, t) * 1.0 + causticNet(cp * 1.9 + 5.0, t) * 0.5;
+    float causFocus = 0.22 + 0.78 * smoothstep(0.0, 0.45, rH);   // 波峰处才被聚焦
+    col += caus * uCaustic * causFocus * vec3(0.42, 0.86, 0.86) * 0.58;
 
     // 水色：薄薄一层蓝，不能压死底下的东西
     vec3 waterCol = vec3(0.13, 0.36, 0.46);
