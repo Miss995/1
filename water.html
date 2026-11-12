@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v96 · 18:20</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v97 · 18:24</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -92,6 +92,7 @@
   <div class="row"><label>波面</label><input id="s_surf"  type="range" min="0"   max="300" value="100"><span class="val" id="v_surf">100</span></div>
   <div class="row"><label>大浪</label><input id="s_wave"  type="range" min="0"   max="100" value="0"><span class="val" id="v_wave">0</span></div>
   <div class="row"><label>光斑</label><input id="s_caus"  type="range" min="0"   max="150" value="60"><span class="val" id="v_caus">60</span></div>
+  <div class="row"><label>亮面</label><input id="s_bright" type="range" min="0" max="100" value="60"><span class="val" id="v_bright">60</span></div>
   <div class="row"><label>Gerstner</label><input id="s_gerstner" type="range" min="0" max="100" value="55"><span class="val" id="v_gerstner">55</span></div>
   <div class="row"><label>切面</label><input id="s_slice" type="range" min="30"  max="800" value="200"><span class="val" id="v_slice">200</span></div>
 
@@ -136,6 +137,7 @@ uniform float uSlice;
 uniform float uDbgGrid;
 uniform float uDbgWave;
 uniform float uGerstner;
+uniform float uBright;
 uniform float uBaseGlow;
 
 uniform vec4 uRipples[14];
@@ -554,8 +556,10 @@ void main() {
     float slopeDir = slopeMag > 1e-4 ? dot(gGrid / slopeMag, vec2(0.96, 0.28)) : 0.0;
     float facing = smoothstep(-0.12, 0.12, -slopeDir);   // 窄过渡，不留就成折纸
     // 迎光面反射天空 → 偏白；背光面透出水下 → 偏青。两个颜色，不是同一个颜色加亮加暗。
+    // 迎光那个颜色现在接滑杆：0 = 灰蓝（等于没有亮面），1 = 原来的近白。
     float mixT = facing;
-    vec3 shadeTint = mix(vec3(0.20, 0.44, 0.52), vec3(0.90, 0.96, 1.00), mixT);
+    vec3 brightC   = mix(vec3(0.52, 0.62, 0.70), vec3(0.90, 0.96, 1.00), uBright);
+    vec3 shadeTint = mix(vec3(0.20, 0.44, 0.52), brightC, mixT);
     float shadeWave = 0.0;
 
     // ---- 原始波模式：纯灰度画高度场，不带网格、不带明暗、不带任何效果 ----
@@ -647,7 +651,7 @@ void main() {
 
   const U = {};
   ['uRes','uTime','uPitch','uFront','uDecay','uRefr','uNorm','uShine',
-   'uSpecPow','uTrans','uCaustic','uTint','uBg','uWave','uBaseGlow','uSlice','uDbgGrid','uDbgWave','uGerstner']
+   'uSpecPow','uTrans','uCaustic','uTint','uBg','uWave','uBaseGlow','uSlice','uDbgGrid','uDbgWave','uGerstner','uBright']
     .forEach(n => U[n] = gl.getUniformLocation(prog, n));
   U.uRipples = gl.getUniformLocation(prog, 'uRipples');
   U.uPhaseSpd = gl.getUniformLocation(prog, 'uPhaseSpd');
@@ -655,7 +659,7 @@ void main() {
   U.uSurfShade = gl.getUniformLocation(prog, 'uSurfShade');
 
   const S = { pitch:180, spd:200, front:28, decay:8, refr:40, norm:100,
-              shine:80, spec:90, trans:55, caus:60, surf:100, bg:0, wave:0, glow:0, slice:200, dbgGrid:0, dbgWave:0, gerstner:55 };
+              shine:80, spec:90, trans:55, caus:60, surf:100, bg:0, wave:0, glow:0, slice:200, dbgGrid:0, dbgWave:0, gerstner:55, bright:60 };
   let paused = true, tAcc = 2.0, last = performance.now();
   let needDraw = true;
 
@@ -745,7 +749,7 @@ void main() {
   bind('pitch','pitch'); bind('spd','spd'); bind('front','front'); bind('decay','decay');
   bind('refr','refr');   bind('norm','norm');   bind('shine','shine');
   bind('spec','spec');   bind('trans','trans'); bind('caus','caus');
-  bind('surf','surf'); bind('wave','wave'); bind('slice','slice'); bind('gerstner','gerstner');
+  bind('surf','surf'); bind('wave','wave'); bind('slice','slice'); bind('gerstner','gerstner'); bind('bright','bright');
   document.querySelectorAll('[data-dbg]').forEach(btn => {
     btn.addEventListener('click', () => {
       const on = btn.classList.toggle('on');
@@ -828,6 +832,7 @@ void main() {
     gl.uniform1f(U.uDbgGrid, S.dbgGrid);
     gl.uniform1f(U.uDbgWave, S.dbgWave);
     gl.uniform1f(U.uGerstner, S.gerstner / 100.0);
+    gl.uniform1f(U.uBright, S.bright / 100.0);
     gl.uniform1f(U.uBaseGlow, S.glow);
     gl.uniform4fv(U.uRipples, ripples);
     gl.uniform1fv(U.uRipR, ripR);
