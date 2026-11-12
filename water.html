@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v81 · 16:08</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v82 · 16:15</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -297,12 +297,16 @@ float waterHeight(vec2 p, float t) {
     // 真实水面是几条方向不同的波叠在一起：起伏是连续的条纹网络，
     // 等值线连成片、明暗顺着条纹、高光也顺着条纹，三样自然对齐。
     // 顺带：4 次 sin 比 fbm 那串噪声便宜得多。
+    // 一个主波 + 两个碎浪，方向接近。
+    // 之前是四个方向乱叠、幅值又接近（0.55/0.32/0.19/0.11）——
+    // 一定有点会正负抵消，那里高度掉到 0、周围是高的，于是长出一个闭合的坑，
+    // 看着就是"水流着流着突然凹进去一块"。
+    // 真实海面是风推着一个方向，其余都是碎浪，抵不到 0。
     float h = 0.0;
-    h += waveSin(dot(p, vec2( 0.85,  0.28)) * 5.2  + t * 1.10) * 0.55;
-    h += waveSin(dot(p, vec2(-0.42,  0.80)) * 8.1  + t * 0.85) * 0.32;
-    h += waveSin(dot(p, vec2( 0.66, -0.62)) * 12.4 + t * 1.35) * 0.19;
-    h += waveSin(dot(p, vec2(-0.24, -0.92)) * 17.0 + t * 1.02) * 0.11;
-    return clamp(h * 0.42 + 0.5, 0.0, 1.0);   // 归一到 0..1
+    h += waveSin(dot(p, vec2( 0.96,  0.28)) * 5.2  + t * 1.10) * 0.85;
+    h += waveSin(dot(p, vec2( 0.88,  0.47)) * 8.1  - t * 0.85) * 0.10;
+    h += waveSin(dot(p, vec2( 0.99, -0.14)) * 12.4 + t * 1.35) * 0.05;
+    return clamp(h * 0.5 + 0.5, 0.0, 1.0);   // 归一到 0..1
 }
 
 // ---------- 涟漪 ----------
@@ -466,8 +470,8 @@ void main() {
     // 两组等值线相交 → 一块块多边形，而且整张网跟着波一起走
     // （这才是"水面"；Worley 是任意细胞，跟波没关系）。
     vec2 pp2 = p * 2.5;   // 细条纹 = 明暗层次多 = 好调体积感
-    float h1 = gridHeight(pp2, t);
-    float h2 = gridHeight(vec2(pp2.y, -pp2.x), t);
+    float h1 = waterHeight(pp2, t);
+    float h2 = waterHeight(vec2(pp2.y, -pp2.x), t);
     float n1 = h1 * uSlice * 3.0;
     float n2 = h2 * uSlice * 3.0;
     float f1 = fract(n1), f2 = fract(n2);
