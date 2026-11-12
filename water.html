@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v74 · 15:00</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v75 · 15:29</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -437,14 +437,22 @@ void main() {
     // 每个波从峰到谷，朝光的半边和背光的半边是两个面，中间一条线。
     // 关键是"二值"：同一个面里亮度一样，所以不会一路渐变。
     // 切面 = 把平面切成一块块（细胞噪声），不是按高度切等高线。
-    // 真实的"面"是反射方向突变的地方：一小块一小块，各自映着不同的东西。
-    // 等高线切出来是闭合的圈（像扔石头的水纹），方向就错了。
-    // 色块要跟着水流动，不能是死图案：
-    // gWave（大浪梯度）负责"水推到哪儿块就挪到哪儿"，慢平移负责没有大浪时也在动。
-    vec2 flow = gWave * 0.05 + vec2(t * 0.02, t * 0.013);
-    vec3 wc = worley3(p * uSlice * 2.0 + flow);
-    float border   = smoothstep(0.0, 0.06, wc.y - wc.x);   // 0=在边界上，1=在块内
-    float cellShade = (fract(wc.z * 17.0) - 0.5) * 0.46;   // 每块自己的固定亮度
+    // ---- 正交网格：等高线 × 梯度线 ----
+    // 严格算梯度线是"积分曲线"，要沿梯度一步步走，太贵。
+    // 近似：把高度场旋转 90°，它的等值线方向正好跟原来的梯度线重合。
+    // 两组等值线相交 → 一块块多边形，而且整张网跟着波一起走
+    // （这才是"水面"；Worley 是任意细胞，跟波没关系）。
+    vec2 pp2 = p * 2.5;
+    float h1 = waterHeight(pp2, t);
+    float h2 = waterHeight(vec2(pp2.y, -pp2.x), t);
+    float n1 = h1 * uSlice * 3.0;
+    float n2 = h2 * uSlice * 3.0;
+    float f1 = fract(n1), f2 = fract(n2);
+    float d1 = min(f1, 1.0 - f1);          // 到最近一条等高线的距离
+    float d2 = min(f2, 1.0 - f2);          // 到最近一条梯度线的距离
+    float border = smoothstep(0.0, 0.05, min(d1, d2));   // 0=在线上，1=格子里
+    float cid = floor(n1) * 37.0 + floor(n2) * 91.0;     // 两条线的层级编号 = 格子 id
+    float cellShade = (hash21(vec2(cid, 3.7)) - 0.5) * 0.46;
     float shadeWave = cellShade;
 
     // 光斑（焦散）：光穿过波峰之后聚焦在面与面的交界上 —— 那里光被对折得最厉害。
