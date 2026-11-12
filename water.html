@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v62 · 13:36</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v63 · 13:36</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -369,7 +369,6 @@ void main() {
     // 涟漪不加光斑：它太小，加光斑只会糊成一团，把明暗的环搅浑
     // 光斑不掺第二种颜色：它只跟着明暗走，在最亮那一档叠白。
     // 之前是"掺青绿"+"乘亮度"两层叠在一起，亮面就成了几种颜色混出来的。
-    float causBright = step(0.80, facet);
 
     // 水色：薄薄一层蓝，不能压死底下的东西
     vec3 waterCol = vec3(0.13, 0.36, 0.46);
@@ -417,6 +416,8 @@ void main() {
     float qF       = floor(quant);
     float softEdge = smoothstep(0.0, 0.12, fract(quant));
     float facet    = (qF + softEdge) / 5.0;
+    // 光斑不掺第二种颜色：跟着明暗走，只在最亮那一档叠白
+    float causBright = step(0.80, facet);
     float shadeWave = (facet - 0.45) * 0.40;
     col *= (1.0 + shadeRip + shadeWave);
     col += causBright * uCaustic * vec3(0.90, 0.98, 1.0) * 0.55;
