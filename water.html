@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v30 · 10:49</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v31 · 11:00</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -240,25 +240,25 @@ float rippleH(vec2 uv, float t) {
         // 能量摊在越来越长的圆周上：1/sqrt(r)，不是指数硬砍
         float spread = 1.0 / sqrt(1.0 + dist * 1.8);
         // 主要衰减交给位置：跑到屏幕边缘才淡出去
-        float edgeFade = 1.0 - smoothstep(0.62, 1.25, dist);
+        float edgeFade = 1.0 - smoothstep(0.34, 0.56, dist);   // 屏幕边缘之前就该淡完
 
         // 不用正弦波场了，直接画 5 个波峰：
         // 各自往外跑，从生到死就是这 5 个 —— 不增、不减、不冒新的
-        float ampN = 1.0;
         float hAcc = 0.0;
         for (int n = 0; n < 5; n++) {
             // 五圈同一时刻出发，各自速度不同：靠外的快、靠内的慢。
             // 所以一开始挤在手指那儿，越往后越散开 —— 不增不减，没有"新生"
             // 短波跑得快、长波跑得慢 —— 所以靠外的快、靠内的慢。
             // （之前写反了：内圈跑得比外圈快，一路追上去把外圈撞散了）
-            float speed = pow(1.22, float(n));
-            float rn = uRipR[i] + float(n) * 0.022 + uFront * age * speed;
+            float speed = pow(1.12, float(n)) * uPhaseSpd * 0.5;
+            float rn = uRipR[i] + float(n) * 0.009 + uFront * age * speed;
             float d = abs(dist - rn);
             // 外圈是毛细波：细而快；内圈是重力波：宽而慢
             float wv = (0.009 + rn * 0.024) * (1.0 - float(n) * 0.13);
             float prof = exp(-pow(d / wv, 2.0));
+            // 钟形：中间那两圈最清楚，最外和最里都淡下去 —— 真实的波包就长这样
+            float ampN = 1.0 - abs(float(n) - 2.0) * 0.22;
             hAcc += prof * ampN;
-            ampN *= 0.88;          // 内圈只稍弱一点，别压到看不见
         }
         // 中心平坦窗：手指底下那块是真的空的（振幅 0，不是"很弱"）
         float innerMask = smoothstep(0.0, uRipR[i] * 0.75, dist);
