@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v69 · 14:12</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v70 · 14:20</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -92,6 +92,7 @@
   <div class="row"><label>波面</label><input id="s_surf"  type="range" min="0"   max="300" value="100"><span class="val" id="v_surf">100</span></div>
   <div class="row"><label>大浪</label><input id="s_wave"  type="range" min="0"   max="100" value="0"><span class="val" id="v_wave">0</span></div>
   <div class="row"><label>光斑</label><input id="s_caus"  type="range" min="0"   max="150" value="60"><span class="val" id="v_caus">60</span></div>
+  <div class="row"><label>切面</label><input id="s_slice" type="range" min="30"  max="800" value="200"><span class="val" id="v_slice">200</span></div>
 
   <div class="btns">
     <button data-bg="grid" class="on">格子底</button>
@@ -128,6 +129,7 @@ uniform float uCaustic;
 uniform float uTint;
 uniform float uBg;
 uniform float uWave;
+uniform float uSlice;
 uniform float uBaseGlow;
 
 uniform vec4 uRipples[14];
@@ -419,7 +421,7 @@ void main() {
     // 切面 = 按高度切层，不是按坡度分正负。
     // 坡度只有正负两种取值，最多切两刀；高度才能切多刀，边界是等高线。
     float hTotal = hWave + rH * 2.5;                       // 涟漪高度也算进总高度
-    float layer  = floor(hTotal * 2.0);                    // 每 0.5 一刀
+    float layer  = floor(hTotal * uSlice);                 // 刀数由滑杆控
     float shadeWave = clamp(layer * 0.16 - 0.24, -0.23, 0.23);
     col *= (1.0 + shadeRip + shadeWave);
 
@@ -489,7 +491,7 @@ void main() {
 
   const U = {};
   ['uRes','uTime','uPitch','uFront','uDecay','uRefr','uNorm','uShine',
-   'uSpecPow','uTrans','uCaustic','uTint','uBg','uWave','uBaseGlow']
+   'uSpecPow','uTrans','uCaustic','uTint','uBg','uWave','uBaseGlow','uSlice']
     .forEach(n => U[n] = gl.getUniformLocation(prog, n));
   U.uRipples = gl.getUniformLocation(prog, 'uRipples');
   U.uPhaseSpd = gl.getUniformLocation(prog, 'uPhaseSpd');
@@ -497,7 +499,7 @@ void main() {
   U.uSurfShade = gl.getUniformLocation(prog, 'uSurfShade');
 
   const S = { pitch:180, spd:200, front:28, decay:8, refr:40, norm:100,
-              shine:80, spec:90, trans:55, caus:60, surf:100, bg:0, wave:0, glow:0 };
+              shine:80, spec:90, trans:55, caus:60, surf:100, bg:0, wave:0, glow:0, slice:200 };
   let paused = true, tAcc = 2.0, last = performance.now();
   let needDraw = true;
 
@@ -587,7 +589,7 @@ void main() {
   bind('pitch','pitch'); bind('spd','spd'); bind('front','front'); bind('decay','decay');
   bind('refr','refr');   bind('norm','norm');   bind('shine','shine');
   bind('spec','spec');   bind('trans','trans'); bind('caus','caus');
-  bind('surf','surf'); bind('wave','wave');
+  bind('surf','surf'); bind('wave','wave'); bind('slice','slice');
 
   document.querySelectorAll('[data-bg]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -658,6 +660,7 @@ void main() {
     gl.uniform1f(U.uTint, 0.55);
     gl.uniform1f(U.uBg, S.bg);
     gl.uniform1f(U.uWave, S.wave / 100);
+    gl.uniform1f(U.uSlice, S.slice / 100);
     gl.uniform1f(U.uBaseGlow, S.glow);
     gl.uniform4fv(U.uRipples, ripples);
     gl.uniform1fv(U.uRipR, ripR);
