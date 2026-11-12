@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v35 · 12:06</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v36 · 12:15</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -163,6 +163,30 @@ float fbm(vec2 p) {
 }
 
 // 水下光斑：光在水底汇聚出的网，不是斑块
+// Worley / 细胞噪声：每格撒一个点，取"到最近点与第二近点的距离差"。
+// 差值最小的地方 = 两个细胞的交界 —— 那是一条硬边折线。
+// 真实 caustic 的骨架就是这样一群多边形拼起来，不是平滑曲线。
+vec2 hash22(vec2 p) {
+    p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+    return fract(sin(p) * 43758.5453);
+}
+float cellEdge(vec2 p) {
+    vec2 n = floor(p);
+    vec2 f = fract(p);
+    float d1 = 8.0, d2 = 8.0;
+    for (int j = -1; j <= 1; j++) {
+        for (int i = -1; i <= 1; i++) {
+            vec2 g = vec2(float(i), float(j));
+            vec2 o = hash22(n + g);
+            vec2 r = g + o - f;
+            float d = dot(r, r);
+            if (d < d1) { d2 = d1; d1 = d; }
+            else if (d < d2) { d2 = d; }
+        }
+    }
+    return sqrt(d2) - sqrt(d1);
+}
+
 float causticNet(vec2 p, float t) {
     float a = vnoise(p + vec2(t * 0.055, 0.0));
     float b = vnoise(p + vec2(0.0, t * 0.042) + 17.3);
@@ -315,10 +339,15 @@ void main() {
 
     // 水里的光斑：光穿过波峰被聚焦打在水底 —— 波峰处聚成细亮纹，平坦处几乎没有。
     // 频率要高（一屏几十条），强度要克制，而且必须跟波挂钩。
-    vec2 cp = uvw * vec2(26.0, 40.0);
-    float caus = causticNet(cp, t) * 1.0 + causticNet(cp * 1.9 + 5.0, t) * 0.5;
-    float causFocus = 0.22 + 0.78 * smoothstep(0.0, 0.45, rH);   // 波峰处才被聚焦
-    col += caus * uCaustic * causFocus * vec3(0.42, 0.86, 0.86) * 0.58;
+    // 骨架换成细胞交界线（多边形、有棱角），叠加一层细的做扰动
+    vec2 cp = uvw * vec2(15.0, 23.0);
+    float ce = cellEdge(cp + vec2(t * 0.10, t * 0.06));
+    float ce2 = cellEdge(cp * 2.3 + 7.0 - vec2(t * 0.14, -t * 0.09));
+    float caus = 1.0 - smoothstep(0.0, 0.055, ce);            // 硬边折线
+    caus *= 0.55 + 0.45 * (1.0 - smoothstep(0.0, 0.030, ce2));
+    // 没有波就没有聚焦 —— 平静水面底下必须一点光斑都没有，不留底
+    float causFocus = smoothstep(0.0, 0.45, rH);
+    col += caus * uCaustic * causFocus * vec3(0.42, 0.86, 0.86) * 0.72;
 
     // 水色：薄薄一层蓝，不能压死底下的东西
     vec3 waterCol = vec3(0.13, 0.36, 0.46);
