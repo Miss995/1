@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v102 · 18:57</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v103 · 19:00</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -598,13 +598,17 @@ void main() {
     // 判据直接用 h1（高度，0..1）：越高越接近峰顶。
     // 好处是数量级稳定 —— 波再密，峰顶的量不会跟着边界一起翻倍。
     // caustMask 保留一点点断续，因为真实焦散是碎的、不是一整片。
-    float caustMask = step(0.30, hash21(floor(p * 55.0)));
+    // 频率 55 时一格约占屏宽 2%，眼睛能直接看出方块 → 提到 220，细到看不出格。
+    // 门槛 0.30 → 0.42，让断续更明显（真实焦散是零星亮点，不是覆盖层）。
+    float caustMask = step(0.42, hash21(floor(p * 220.0)));
     // 门槛压低：六波相加时波峰"只是有点高"，很少冲到 0.84，
     // 原来的 smoothstep(0.58,0.84) 把绝大部分都掐掉了。
     // ⚠️ 名字不能用 caus —— 480 行已经有一个 float caus（波峰扫描线用的），
     // 同一个函数里重名 = 编译失败 = 整页黑。v100/v101 就是这个原因。
-    float caustV = smoothstep(0.50, 0.68, h1) * caustMask * uCaustic;
-    col += caustV * vec3(0.88, 0.98, 1.0) * 1.10;
+    // 跨 0.10 而不是 0.18：只挑真正的峰顶，不然"有点高"的地方全算上，成了大片白。
+    // 强度 1.10→0.50：之前直接把亮面推到过曝。
+    float caustV = smoothstep(0.62, 0.72, h1) * caustMask * uCaustic;
+    col += caustV * vec3(0.88, 0.98, 1.0) * 0.50;
     col *= (1.0 + shadeRip);
     col = mix(col, shadeTint, 0.16 * border);   // 边界密了，混色要收（原来 0.30）   // border=0 在线上不受影响
 
