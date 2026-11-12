@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v72 · 14:50</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v73 · 14:55</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -449,6 +449,12 @@ void main() {
     float border   = smoothstep(0.0, 0.06, wc.y - wc.x);   // 0=在边界上，1=在块内
     float cellShade = (fract(wc.z * 17.0) - 0.5) * 0.46;   // 每块自己的固定亮度
     float shadeWave = cellShade;
+
+    // 光斑（焦散）：光穿过波峰之后聚焦在面与面的交界上 —— 那里光被对折得最厉害。
+    // 真实的焦散是断续的亮点，不是一整条线，所以在边界上再挑一部分点。
+    float caustMask = step(0.52, fract(wc.z * 53.0));
+    float caust = (1.0 - border) * caustMask * uCaustic;
+    col += caust * vec3(0.88, 0.98, 1.0) * 1.10;
     col *= (1.0 + shadeRip + shadeWave);
 
     // 折痕处的光：两个面交界，光被对折得最厉害 —— 真实水面的焦散线就是这条。
