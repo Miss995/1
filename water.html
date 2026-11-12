@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v87 · 17:23</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v88 · 17:31</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -99,6 +99,7 @@
     <button data-bg="dots">圆点底</button>
     <button data-bg="stripes">彩条底</button>
     <button data-dbg="grid">网格调试</button>
+    <button data-dbg="wave">原始波</button>
   </div>
   <div class="btns">
     <button id="b_pause">继续</button>
@@ -132,6 +133,7 @@ uniform float uBg;
 uniform float uWave;
 uniform float uSlice;
 uniform float uDbgGrid;
+uniform float uDbgWave;
 uniform float uBaseGlow;
 
 uniform vec4 uRipples[14];
@@ -516,6 +518,14 @@ void main() {
     vec3 shadeTint = mix(vec3(0.20, 0.44, 0.52), vec3(0.90, 0.96, 1.00), mixT);
     float shadeWave = 0.0;
 
+    // ---- 原始波模式：纯灰度画高度场，不带网格、不带明暗、不带任何效果 ----
+    // 用来直接看"这个波长什么样"，而不是看它被网格切成什么样。
+    if (uDbgWave > 0.5) {
+        float hh = waterHeight(p * 2.5, t);
+        gl_FragColor = vec4(vec3(hh), 1.0);
+        return;
+    }
+
     // ---- 网格调试模式：只画网格本身，其他全关 ----
     if (uDbgGrid > 0.5) {
         // 纯白底 + 黑线：只看网格本身，不带任何明暗，否则灰度抢眼反而看不见线
@@ -595,7 +605,7 @@ void main() {
 
   const U = {};
   ['uRes','uTime','uPitch','uFront','uDecay','uRefr','uNorm','uShine',
-   'uSpecPow','uTrans','uCaustic','uTint','uBg','uWave','uBaseGlow','uSlice','uDbgGrid']
+   'uSpecPow','uTrans','uCaustic','uTint','uBg','uWave','uBaseGlow','uSlice','uDbgGrid','uDbgWave']
     .forEach(n => U[n] = gl.getUniformLocation(prog, n));
   U.uRipples = gl.getUniformLocation(prog, 'uRipples');
   U.uPhaseSpd = gl.getUniformLocation(prog, 'uPhaseSpd');
@@ -603,7 +613,7 @@ void main() {
   U.uSurfShade = gl.getUniformLocation(prog, 'uSurfShade');
 
   const S = { pitch:180, spd:200, front:28, decay:8, refr:40, norm:100,
-              shine:80, spec:90, trans:55, caus:60, surf:100, bg:0, wave:0, glow:0, slice:200, dbgGrid:0 };
+              shine:80, spec:90, trans:55, caus:60, surf:100, bg:0, wave:0, glow:0, slice:200, dbgGrid:0, dbgWave:0 };
   let paused = true, tAcc = 2.0, last = performance.now();
   let needDraw = true;
 
@@ -697,7 +707,8 @@ void main() {
   document.querySelectorAll('[data-dbg]').forEach(btn => {
     btn.addEventListener('click', () => {
       const on = btn.classList.toggle('on');
-      S.dbgGrid = on ? 1 : 0;
+      const key = btn.dataset.dbg;                       // grid / wave，通用，加新按钮不用改这
+      S['dbg' + key.charAt(0).toUpperCase() + key.slice(1)] = on ? 1 : 0;
       needDraw = true;
     });
   });
@@ -773,6 +784,7 @@ void main() {
     gl.uniform1f(U.uWave, S.wave / 100);
     gl.uniform1f(U.uSlice, S.slice / 100);
     gl.uniform1f(U.uDbgGrid, S.dbgGrid);
+    gl.uniform1f(U.uDbgWave, S.dbgWave);
     gl.uniform1f(U.uBaseGlow, S.glow);
     gl.uniform4fv(U.uRipples, ripples);
     gl.uniform1fv(U.uRipR, ripR);
