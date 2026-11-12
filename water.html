@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v88 · 17:31</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v89 · 17:34</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -304,14 +304,20 @@ float waterHeight(vec2 p, float t) {
     // 一定有点会正负抵消，那里高度掉到 0、周围是高的，于是长出一个闭合的坑，
     // 看着就是"水流着流着突然凹进去一块"。
     // 真实海面是风推着一个方向，其余都是碎浪，抵不到 0。
-    float h = 0.0;
-    // k 从 5.2 提到 12.5：波长从 ~1.2 缩到 ~0.5。
-    // 屏幕宽只有 1（p 在 -0.5..0.5），原来一个屏只装一个多周期 = 大浪；
-    // 现在装两三个周期，才是"一片水"而不是"一个浪头"。
-    h += waveSin(dot(p, vec2( 0.96,  0.28)) * 12.5 + t * 1.10) * 0.85;
-    h += waveSin(dot(p, vec2( 0.88,  0.47)) * 19.4 - t * 0.85) * 0.10;
-    h += waveSin(dot(p, vec2( 0.99, -0.14)) * 29.8 + t * 1.35) * 0.05;
-    return clamp(h * 0.5 + 0.5, 0.0, 1.0);   // 归一到 0..1
+    // 涌浪 + 碎浪 —— 两个角色分开，不是一个角色叠三遍。
+    //  涌浪：低频、大尺度、单一方向 → 定下"这片水往哪流"，也是长条主结构。
+    //  碎浪：高频、方向散开（跟主波夹角 40~70°）→ 提供横向纹理。
+    // 关键约束：碎浪振幅加起来 0.34 < 涌浪 0.62。
+    //  最坏 swell=−0.62、chop=+0.34 → −0.28，抵不到 0 → 不会长出闭合的坑。
+    //  之前那个坑的死因就是"多方向 + 幅值接近 + 互相抵消"。
+    // 上一版三个方向都压在 15° 以内：坑没了，但横向也一点起伏都没有
+    //  → 退化成一维条纹（点「原始波」看到的那张竖条布就是这个）。
+    float swell = waveSin(dot(p, vec2( 0.96,  0.28)) * 4.2  + t * 0.55) * 0.62;
+    float chop  = 0.0;
+    chop += waveSin(dot(p, vec2( 0.42,  0.91)) * 13.0 + t * 1.35) * 0.15;
+    chop += waveSin(dot(p, vec2(-0.66,  0.75)) * 17.5 - t * 1.10) * 0.11;
+    chop += waveSin(dot(p, vec2( 0.85, -0.53)) * 22.0 + t * 1.55) * 0.08;
+    return clamp((swell + chop) * 0.5 + 0.5, 0.0, 1.0);   // 归一到 0..1
 }
 
 // waterHeight 的解析梯度：h = Σ A·sin(k·D·p + ωt)，∇h = Σ A·k·D·cos(...)。
@@ -319,12 +325,14 @@ float waterHeight(vec2 p, float t) {
 vec2 waterGrad(vec2 p, float t) {
     vec2 g = vec2(0.0);
     float ph;
-    ph = dot(p, vec2( 0.96,  0.28)) * 12.5 + t * 1.10;
-    g += vec2( 0.96,  0.28) * (12.5 * cos(ph) * 0.85);
-    ph = dot(p, vec2( 0.88,  0.47)) * 19.4 - t * 0.85;
-    g += vec2( 0.88,  0.47) * (19.4 * cos(ph) * 0.10);
-    ph = dot(p, vec2( 0.99, -0.14)) * 29.8 + t * 1.35;
-    g += vec2( 0.99, -0.14) * (29.8 * cos(ph) * 0.05);
+    ph = dot(p, vec2( 0.96,  0.28)) * 4.2  + t * 0.55;
+    g += vec2( 0.96,  0.28) * ( 4.2 * cos(ph) * 0.62);
+    ph = dot(p, vec2( 0.42,  0.91)) * 13.0 + t * 1.35;
+    g += vec2( 0.42,  0.91) * (13.0 * cos(ph) * 0.15);
+    ph = dot(p, vec2(-0.66,  0.75)) * 17.5 - t * 1.10;
+    g += vec2(-0.66,  0.75) * (17.5 * cos(ph) * 0.11);
+    ph = dot(p, vec2( 0.85, -0.53)) * 22.0 + t * 1.55;
+    g += vec2( 0.85, -0.53) * (22.0 * cos(ph) * 0.08);
     return g * 0.5;   // 跟 waterHeight 里那个 *0.5 对齐
 }
 
