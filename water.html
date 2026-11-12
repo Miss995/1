@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v98 · 18:30</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v99 · 18:45</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -562,7 +562,10 @@ void main() {
     // 迎光面反射天空 → 偏白；背光面透出水下 → 偏青。两个颜色，不是同一个颜色加亮加暗。
     // 迎光那个颜色现在接滑杆：0 = 灰蓝（等于没有亮面），1 = 原来的近白。
     float mixT = facing;
-    vec3 brightC   = mix(vec3(0.52, 0.62, 0.70), vec3(0.90, 0.96, 1.00), uBright);
+    // 下限必须就是背光色本身：否则滑杆拖到 0 时迎光面还是"灰蓝"，比背光的青亮，
+    // 于是在青底上浮出一片片灰白的斑 —— 那不是水，是"亮面没关干净"。
+    // 现在 0 = 迎光色 == 背光色 → 两个面同色 → 明暗物理上消失。
+    vec3 brightC   = mix(vec3(0.20, 0.44, 0.52), vec3(0.90, 0.96, 1.00), uBright);
     vec3 shadeTint = mix(vec3(0.20, 0.44, 0.52), brightC, mixT);
     float shadeWave = 0.0;
 
