@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v80 · 15:57</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v81 · 16:08</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -252,12 +252,22 @@ float waveSin(float x) {
 // 网格专用的高度场：只要三个方向接近的波。
 // 水面渲染用的 waterHeight 是四个方向乱叠的 —— 那个用来做起伏好看，
 // 但拿它切等值线就是一团乱麻（线会打结、绕小圈）。真实海面是风推着一个方向。
+// 峰尖谷平：真实海浪不是 sin 那种上下对称的圆滑起伏。
+// 正半轴压尖（pow<1 → 峰陡），负半轴拉平（pow>1 → 谷缓）。
+// 这是 Gerstner 波"水平位移挤压波峰"效果的一个便宜近似。
+float sharpSin(float ph) {
+    float s = sin(ph);
+    return s >= 0.0 ? pow(max(s, 1e-4), 0.72) : -pow(max(-s, 1e-4), 1.45);
+}
+
 float gridHeight(vec2 p, float t) {
     float h = 0.0;
-    h += sin(dot(p, vec2( 0.96,  0.28)) * 2.1 + t * 0.35) * 0.60;
-    h += sin(dot(p, vec2( 0.88,  0.47)) * 3.4 - t * 0.28) * 0.28;
-    h += sin(dot(p, vec2( 0.99, -0.14)) * 4.9 + t * 0.22) * 0.12;
-    return h * 0.42 + 0.5;
+    // 主波占绝对优势：四个波幅值接近时，一定会有点正负抵消 → 长出一个闭合的坑。
+    // 真实海面是风推着一个方向，其余都是碎浪，抵不到 0。
+    h += sharpSin(dot(p, vec2( 0.96,  0.28)) * 2.1 + t * 0.35) * 0.85;
+    h += sharpSin(dot(p, vec2( 0.88,  0.47)) * 3.4 - t * 0.28) * 0.10;
+    h += sharpSin(dot(p, vec2( 0.99, -0.14)) * 4.9 + t * 0.22) * 0.05;
+    return h * 0.5 + 0.5;
 }
 
 // Worley 细胞噪声：把平面切成一块一块的多边形。
