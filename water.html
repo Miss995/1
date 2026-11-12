@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v90 · 17:39</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v91 · 17:43</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -505,7 +505,9 @@ void main() {
     float n2 = h2 * uSlice * 3.0;
     float f1 = fract(n1), f2 = fract(n2);
     float d1 = min(f1, 1.0 - f1);          // 到最近一条等高线的距离
-    float d2 = min(f2, 1.0 - f2);          // 到最近一条梯度线的距离
+    // 临时关掉：旋转 90° 的波当梯度线，现在也是乱圈，跟等高线对不上，看着是麻。
+    // 先只看一组线，确认等高线跟着地形走成什么样。
+    float d2 = 1.0;                        // 1.0 = 永远不在线上 = 这组不画
     float border = smoothstep(0.0, 0.035, min(d1, d2));   // 0=在线上，1=格子里
     float cid = floor(n1) * 37.0 + floor(n2) * 91.0;     // 两条线的层级编号 = 格子 id
     // 每格的亮度 = 这一格的水面朝向光源的多少（不是随机数）
