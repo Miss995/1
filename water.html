@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v97 · 18:24</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v98 · 18:30</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -100,6 +100,7 @@
     <button data-bg="grid" class="on">格子底</button>
     <button data-bg="dots">圆点底</button>
     <button data-bg="stripes">彩条底</button>
+    <button data-bg="solid">纯色底</button>
     <button data-dbg="grid">网格调试</button>
     <button data-dbg="wave">原始波</button>
   </div>
@@ -243,7 +244,10 @@ vec3 underStripes(vec2 uv) {
 vec3 under(vec2 uv) {
     if (uBg < 0.5)      return underGrid(uv);
     else if (uBg < 1.5) return underDots(uv);
-    else                return underStripes(uv);
+    else if (uBg < 2.5) return underStripes(uv);
+    // 纯色底：水面越透它越明显，所以想"只看水面本身"就切这个。
+    // 之前没有这一档，格子底那些发白的细直线（underGrid 里 col += line * 0.34）会被当成"水面的白"。
+    else                return vec3(0.13, 0.26, 0.31);
 }
 
 // ---------- 大浪 ----------
@@ -763,7 +767,7 @@ void main() {
     btn.addEventListener('click', () => {
       document.querySelectorAll('[data-bg]').forEach(b => b.classList.remove('on'));
       btn.classList.add('on');
-      S.bg = { grid:0, dots:1, stripes:2 }[btn.dataset.bg];
+      S.bg = { grid:0, dots:1, stripes:2, solid:3 }[btn.dataset.bg];
       needDraw = true;
     });
   });
