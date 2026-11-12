@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v41 · 12:30</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v42 · 12:37</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -331,7 +331,7 @@ void main() {
     vec2 gRip = vec2(rx - rH, ry - rH) / re;
 
     // 折射位移
-    vec2 off = gRip * uRefr * 0.00030 + gWave * 0.0012;
+    vec2 off = gRip * uRefr * 0.00030 + gWave * 0.0028;
     vec2 uvw = uv + off;
 
     // ---- 水底（透亮的关键：底下被光照亮） ----
@@ -343,8 +343,11 @@ void main() {
     // ★ 关键：光斑必须被波"扯"着走，不能是一张钉在屏幕上的图案。
     // 用波的梯度去推细胞图案的坐标 —— 波峰扫过时图案被拉变形，光就跟着动。
     // 不推的话，不管波跑到哪，这层花纹都待在原地（那就是"不跟水走"）。
-    float causWarp = 1.0 - smoothstep(0.0, 0.55, length(gRip) * 0.35);
-    vec2 cp = uvw * vec2(15.0, 23.0) + gRip * 2.6;
+    // 光斑要"勾出浪的形"：把浪高本身当位移场，浪高到哪，花纹就被推到哪。
+    // 只用梯度的话花纹还是平的（梯度只差一点点），加了高度整片图案才会跟着起伏走。
+    vec2 cp = uvw * vec2(15.0, 23.0)
+            + gRip * 2.6
+            + vec2(hWave - 0.5) * (34.0 * uWave);
     float ce = cellEdge(cp + vec2(t * 0.10, t * 0.06));
     float ce2 = cellEdge(cp * 2.3 + 7.0 - vec2(t * 0.14, -t * 0.09));
     float caus = 1.0 - smoothstep(0.0, 0.055, ce);            // 硬边折线
@@ -357,7 +360,7 @@ void main() {
     float causFocus = smoothstep(0.05, 0.45, rH);
     // 大浪：浪的边缘坡最陡，那里才该聚光 —— 不跟大浪绑的话，开大浪也看不见光斑
     float waveSlope = length(gWave);
-    causFocus = max(causFocus, smoothstep(0.012, 0.075, waveSlope));
+    causFocus = max(causFocus, smoothstep(0.006, 0.045, waveSlope));
     col += caus * uCaustic * causFocus * vec3(0.42, 0.86, 0.86) * 0.62;
 
     // 水色：薄薄一层蓝，不能压死底下的东西
@@ -365,7 +368,7 @@ void main() {
     col = mix(col, col * waterCol * 2.2, uTint * 0.20);
 
     // ---- 水面法线 ----
-    vec3 n = normalize(vec3(-(gRip * uNorm * 0.0040 + gWave * 0.18), 1.0));
+    vec3 n = normalize(vec3(-(gRip * uNorm * 0.0040 + gWave * 0.30), 1.0));
 
     // ---- ① 高光：光源在水面的碎倒影 ----
     // 高光要碎成星点：靠两层高频扰动把法线打碎（频率低了会糊成一片）
