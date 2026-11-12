@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v70 · 14:20</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v71 · 14:45</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -247,6 +247,27 @@ float waveSin(float x) {
     return sin(x);
 }
 
+// Worley 细胞噪声：把平面切成一块一块的多边形。
+// 返回 (最近距离, 次近距离, 格子哈希)。
+// d2-d1 小 = 靠近边界；格子哈希 = 这一块自己的身份。
+vec3 worley3(vec2 p) {
+    vec2 ip = floor(p);
+    vec2 fp = fract(p);
+    float d1 = 8.0, d2 = 8.0;
+    vec2 cid = vec2(0.0);
+    for (int y = -1; y <= 1; y++) {
+        for (int x = -1; x <= 1; x++) {
+            vec2 g = vec2(float(x), float(y));
+            vec2 o = hash22(ip + g);
+            vec2 r = g + o - fp;
+            float d = dot(r, r);
+            if (d < d1) { d2 = d1; d1 = d; cid = ip + g; }
+            else if (d < d2) { d2 = d; }
+        }
+    }
+    return vec3(sqrt(d1), sqrt(d2), hash21(cid));
+}
+
 float waterHeight(vec2 p, float t) {
     // 不用 fbm。fbm 的峰是孤立鼓包 —— 在鼓包上切等值线就是一个个闭合的环，
     // 明暗和高光也各自围着包心转，三样东西看起来各跑各的。
@@ -418,11 +439,13 @@ void main() {
     float gWL  = -(gWave.x * L.x + gWave.y * L.y);
     float gWLen = length(gWave) + 1e-6;
     float gWLn = gWL / gWLen;                          // 归一到 -1..1，量级稳定
-    // 切面 = 按高度切层，不是按坡度分正负。
-    // 坡度只有正负两种取值，最多切两刀；高度才能切多刀，边界是等高线。
-    float hTotal = hWave + rH * 2.5;                       // 涟漪高度也算进总高度
-    float layer  = floor(hTotal * uSlice);                 // 刀数由滑杆控
-    float shadeWave = clamp(layer * 0.16 - 0.24, -0.23, 0.23);
+    // 切面 = 把平面切成一块块（细胞噪声），不是按高度切等高线。
+    // 真实的"面"是反射方向突变的地方：一小块一小块，各自映着不同的东西。
+    // 等高线切出来是闭合的圈（像扔石头的水纹），方向就错了。
+    vec3 wc = worley3(p * uSlice * 2.0);
+    float border   = smoothstep(0.0, 0.06, wc.y - wc.x);   // 0=在边界上，1=在块内
+    float cellShade = (fract(wc.z * 17.0) - 0.5) * 0.46;   // 每块自己的固定亮度
+    float shadeWave = cellShade;
     col *= (1.0 + shadeRip + shadeWave);
 
     // 折痕处的光：两个面交界，光被对折得最厉害 —— 真实水面的焦散线就是这条。
