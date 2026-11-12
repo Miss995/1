@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v68 · 14:00</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v69 · 14:12</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -416,8 +416,11 @@ void main() {
     float gWL  = -(gWave.x * L.x + gWave.y * L.y);
     float gWLen = length(gWave) + 1e-6;
     float gWLn = gWL / gWLen;                          // 归一到 -1..1，量级稳定
-    float facing = step(0.0, gWLn);
-    float shadeWave = (facing - 0.5) * 0.46;           // 只有两档：-23% / +23%
+    // 切面 = 按高度切层，不是按坡度分正负。
+    // 坡度只有正负两种取值，最多切两刀；高度才能切多刀，边界是等高线。
+    float hTotal = hWave + rH * 2.5;                       // 涟漪高度也算进总高度
+    float layer  = floor(hTotal * 2.0);                    // 每 0.5 一刀
+    float shadeWave = clamp(layer * 0.16 - 0.24, -0.23, 0.23);
     col *= (1.0 + shadeRip + shadeWave);
 
     // 折痕处的光：两个面交界，光被对折得最厉害 —— 真实水面的焦散线就是这条。
