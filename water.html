@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v48 · 12:54</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v49 · 12:55</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -350,13 +350,16 @@ void main() {
     // 水被波峰切成一面面小镜子，两面镜子折光方向在那里交叉 → 那条交界线才亮。
     // 所以直接从"高度"切等值线：浪高每过一个高度就是一条交界，
     // 浪动线就动、浪有形线就有形 —— 它本来就在水里，不靠外部图案去凑。
+    // 光斑不是独立的图案，是"最亮那部分波面"的锐化 —— 跟明暗同源。
+    // 之前用高度等值线，而等值线在数学上垂直于梯度，所以永远跟明暗错开。
+    float lit = clamp(-(gWave.x * L.x + gWave.y * L.y) * 1.8, 0.0, 1.0);
+    float caus = pow(lit, 3.0) * 1.6;
+    // 细纹只做质感，不改位置
     float bandT = (hWave - 0.5) * 7.0 * uWave + rH * 1.6;
-    float band = abs(fract(bandT) - 0.5) * 2.0;
-    float caus = 1.0 - smoothstep(0.0, 0.055, band);   // 细亮线，不要糊
-    // 有波才有光斑：涟漪的峰、大浪的坡，都算
-    float causFocus = smoothstep(0.05, 0.45, rH);
-    causFocus = max(causFocus, smoothstep(0.006, 0.045, length(gWave)));
-    col += caus * uCaustic * causFocus * vec3(0.42, 0.86, 0.86) * 0.62;
+    caus *= 0.78 + 0.22 * (0.5 + 0.5 * sin(bandT * 8.0));
+    // 涟漪自己也有光斑（波峰处）
+    caus += pow(max(rH, 0.0) * 0.55, 2.0) * 0.55;
+    col += caus * uCaustic * vec3(0.42, 0.86, 0.86) * 0.62;
 
     // 水色：薄薄一层蓝，不能压死底下的东西
     vec3 waterCol = vec3(0.13, 0.36, 0.46);
