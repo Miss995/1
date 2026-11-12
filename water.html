@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v75 · 15:29</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v76 · 15:35</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -98,6 +98,7 @@
     <button data-bg="grid" class="on">格子底</button>
     <button data-bg="dots">圆点底</button>
     <button data-bg="stripes">彩条底</button>
+    <button data-dbg="grid">网格调试</button>
   </div>
   <div class="btns">
     <button id="b_pause">继续</button>
@@ -130,6 +131,7 @@ uniform float uTint;
 uniform float uBg;
 uniform float uWave;
 uniform float uSlice;
+uniform float uDbgGrid;
 uniform float uBaseGlow;
 
 uniform vec4 uRipples[14];
@@ -455,6 +457,15 @@ void main() {
     float cellShade = (hash21(vec2(cid, 3.7)) - 0.5) * 0.46;
     float shadeWave = cellShade;
 
+    // ---- 网格调试模式：只画网格本身，其他全关 ----
+    if (uDbgGrid > 0.5) {
+        float lineLo = 1.0 - smoothstep(0.0, 0.010, min(d1, d2));
+        float gShade = hash21(vec2(cid, 3.7)) * 0.30 + 0.06;   // 每格一个灰度
+        vec3 dbg = mix(vec3(gShade), vec3(1.0, 0.92, 0.72), lineLo);
+        gl_FragColor = vec4(dbg, 1.0);
+        return;
+    }
+
     // 光斑（焦散）：光穿过波峰之后聚焦在面与面的交界上 —— 那里光被对折得最厉害。
     // 真实的焦散是断续的亮点，不是一整条线，所以在边界上再挑一部分点。
     // 按空间坐标判，不按格子判：
@@ -524,7 +535,7 @@ void main() {
 
   const U = {};
   ['uRes','uTime','uPitch','uFront','uDecay','uRefr','uNorm','uShine',
-   'uSpecPow','uTrans','uCaustic','uTint','uBg','uWave','uBaseGlow','uSlice']
+   'uSpecPow','uTrans','uCaustic','uTint','uBg','uWave','uBaseGlow','uSlice','uDbgGrid']
     .forEach(n => U[n] = gl.getUniformLocation(prog, n));
   U.uRipples = gl.getUniformLocation(prog, 'uRipples');
   U.uPhaseSpd = gl.getUniformLocation(prog, 'uPhaseSpd');
@@ -532,7 +543,7 @@ void main() {
   U.uSurfShade = gl.getUniformLocation(prog, 'uSurfShade');
 
   const S = { pitch:180, spd:200, front:28, decay:8, refr:40, norm:100,
-              shine:80, spec:90, trans:55, caus:60, surf:100, bg:0, wave:0, glow:0, slice:200 };
+              shine:80, spec:90, trans:55, caus:60, surf:100, bg:0, wave:0, glow:0, slice:200, dbgGrid:0 };
   let paused = true, tAcc = 2.0, last = performance.now();
   let needDraw = true;
 
@@ -623,6 +634,13 @@ void main() {
   bind('refr','refr');   bind('norm','norm');   bind('shine','shine');
   bind('spec','spec');   bind('trans','trans'); bind('caus','caus');
   bind('surf','surf'); bind('wave','wave'); bind('slice','slice');
+  document.querySelectorAll('[data-dbg]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const on = btn.classList.toggle('on');
+      S.dbgGrid = on ? 1 : 0;
+      needDraw = true;
+    });
+  });
 
   document.querySelectorAll('[data-bg]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -694,6 +712,7 @@ void main() {
     gl.uniform1f(U.uBg, S.bg);
     gl.uniform1f(U.uWave, S.wave / 100);
     gl.uniform1f(U.uSlice, S.slice / 100);
+    gl.uniform1f(U.uDbgGrid, S.dbgGrid);
     gl.uniform1f(U.uBaseGlow, S.glow);
     gl.uniform4fv(U.uRipples, ripples);
     gl.uniform1fv(U.uRipR, ripR);
