@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v31 · 11:00</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v32 · 11:14</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -250,11 +250,13 @@ float rippleH(vec2 uv, float t) {
             // 所以一开始挤在手指那儿，越往后越散开 —— 不增不减，没有"新生"
             // 短波跑得快、长波跑得慢 —— 所以靠外的快、靠内的慢。
             // （之前写反了：内圈跑得比外圈快，一路追上去把外圈撞散了）
-            float speed = pow(1.12, float(n)) * uPhaseSpd * 0.5;
+            float speed = pow(1.16, float(n)) * uPhaseSpd * 0.5;
             float rn = uRipR[i] + float(n) * 0.009 + uFront * age * speed;
             float d = abs(dist - rn);
             // 外圈是毛细波：细而快；内圈是重力波：宽而慢
-            float wv = (0.009 + rn * 0.024) * (1.0 - float(n) * 0.13);
+            // 宽度必须小于出生间距(0.009)，否则内圈几条挤在一起就是一坨糊。
+            // 外圈因为是短波更细，内圈长波稍宽 —— 但两者都得比间距窄。
+            float wv = (0.0052 + rn * 0.016) * (1.0 - float(n) * 0.08);
             float prof = exp(-pow(d / wv, 2.0));
             // 钟形：中间那两圈最清楚，最外和最里都淡下去 —— 真实的波包就长这样
             float ampN = 1.0 - abs(float(n) - 2.0) * 0.22;
