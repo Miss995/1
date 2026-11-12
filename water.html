@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v73 · 14:55</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v74 · 15:00</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -436,9 +436,6 @@ void main() {
     // 面片 = 空间被波切开，不是"亮度分几档"。
     // 每个波从峰到谷，朝光的半边和背光的半边是两个面，中间一条线。
     // 关键是"二值"：同一个面里亮度一样，所以不会一路渐变。
-    float gWL  = -(gWave.x * L.x + gWave.y * L.y);
-    float gWLen = length(gWave) + 1e-6;
-    float gWLn = gWL / gWLen;                          // 归一到 -1..1，量级稳定
     // 切面 = 把平面切成一块块（细胞噪声），不是按高度切等高线。
     // 真实的"面"是反射方向突变的地方：一小块一小块，各自映着不同的东西。
     // 等高线切出来是闭合的圈（像扔石头的水纹），方向就错了。
@@ -452,18 +449,14 @@ void main() {
 
     // 光斑（焦散）：光穿过波峰之后聚焦在面与面的交界上 —— 那里光被对折得最厉害。
     // 真实的焦散是断续的亮点，不是一整条线，所以在边界上再挑一部分点。
-    float caustMask = step(0.52, fract(wc.z * 53.0));
+    // 按空间坐标判，不按格子判：
+    // 用 wc.z（最近格子哈希）的话，一整格的边界会同时亮或同时灭 → 看着有的有有的没有。
+    float caustMask = step(0.50, hash21(floor(p * 90.0)));
     float caust = (1.0 - border) * caustMask * uCaustic;
     col += caust * vec3(0.88, 0.98, 1.0) * 1.10;
     col *= (1.0 + shadeRip + shadeWave);
 
-    // 折痕处的光：两个面交界，光被对折得最厉害 —— 真实水面的焦散线就是这条。
-    // 三条要求分开调：亮度、色调、锐度
-    // 锐度：前 0.030 是全亮实心，只在 0.030~0.055 之间快速掉 → 才有"边"
-    float crease = 1.0 - smoothstep(0.030, 0.055, abs(gWLn));
-    // 实心：用 mix 覆盖，不是加法叠加。
-    // 加法只能往上加光，底色一直在下面 → 看着像半透明的膜，网格会透出来。
-    col = mix(col, vec3(0.80, 0.97, 1.0), clamp(crease * uCaustic, 0.0, 1.0));
+
 
     // ---- ④ 极弱的整体环境反光（俯视只有百分之几，不该看得见） ----
     vec3 R = reflect(-V, n);
