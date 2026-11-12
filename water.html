@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v33 · 11:58</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v34 · 11:59</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -90,7 +90,7 @@
   <div class="row"><label>高光</label><input id="s_spec"  type="range" min="0"   max="200" value="90"><span class="val" id="v_spec">90</span></div>
   <div class="row"><label>透光</label><input id="s_trans" type="range" min="0"   max="150" value="55"><span class="val" id="v_trans">55</span></div>
   <div class="row"><label>波面</label><input id="s_surf"  type="range" min="0"   max="300" value="100"><span class="val" id="v_surf">100</span></div>
-  <div class="row"><label>大浪</label><input id="s_wave"  type="range" min="0"   max="100" value="30"><span class="val" id="v_wave">30</span></div>
+  <div class="row"><label>大浪</label><input id="s_wave"  type="range" min="0"   max="100" value="0"><span class="val" id="v_wave">0</span></div>
   <div class="row"><label>光斑</label><input id="s_caus"  type="range" min="0"   max="150" value="60"><span class="val" id="v_caus">60</span></div>
 
   <div class="btns">
@@ -420,7 +420,7 @@ void main() {
   U.uSurfShade = gl.getUniformLocation(prog, 'uSurfShade');
 
   const S = { pitch:180, spd:200, front:28, decay:8, refr:40, norm:100,
-              shine:80, spec:90, trans:55, caus:60, surf:100, bg:0, wave:30, glow:0 };
+              shine:80, spec:90, trans:55, caus:60, surf:100, bg:0, wave:0, glow:0 };
   let paused = true, tAcc = 2.0, last = performance.now();
   let needDraw = true;
 
