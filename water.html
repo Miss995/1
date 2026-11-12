@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v56 · 13:26</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v57 · 13:27</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -399,7 +399,7 @@ void main() {
     // 水面不投影。亮是反光增强，暗只是看到更深的水 ——
     // 量级要小，而且不对称：往上给得出，往下压不动太多。
     // 涟漪：小起伏，保持平滑。硬切会把它碎成渣（面片只给大浪）。
-    float shadeRip  = clamp(-(gRip.x * L.x + gRip.y * L.y) * uSurfShade * 0.0036, -0.16, 0.20);
+    float shadeRip  = clamp(-(gRip.x * L.x + gRip.y * L.y) * uSurfShade * 0.0015, -0.05, 0.06);
     // 大浪：每个波峰是一道折痕，水面被折成一块块小镜子，面片之间硬切
     float facetQ = floor(lit * 5.0) / 5.0 + 0.1;
     float shadeWave = (facetQ - 0.5) * 0.36;
