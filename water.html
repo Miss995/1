@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v65 · 13:47</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v66 · 13:55</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -413,9 +413,16 @@ void main() {
     // 面片 = 空间被波切开，不是"亮度分几档"。
     // 每个波从峰到谷，朝光的半边和背光的半边是两个面，中间一条线。
     // 关键是"二值"：同一个面里亮度一样，所以不会一路渐变。
-    float facing = step(0.0, -(gWave.x * L.x + gWave.y * L.y));
-    float shadeWave = (facing - 0.5) * 0.46;          // 只有两档：-23% / +23%
+    float gWL  = -(gWave.x * L.x + gWave.y * L.y);
+    float gWLen = length(gWave) + 1e-6;
+    float gWLn = gWL / gWLen;                          // 归一到 -1..1，量级稳定
+    float facing = step(0.0, gWLn);
+    float shadeWave = (facing - 0.5) * 0.46;           // 只有两档：-23% / +23%
     col *= (1.0 + shadeRip + shadeWave);
+
+    // 折痕处的光：两个面交界，光被对折得最厉害 —— 真实水面的焦散线就是这条。
+    float crease = 1.0 - smoothstep(0.0, 0.07, abs(gWLn));
+    col += crease * uCaustic * vec3(0.88, 0.97, 1.0) * 0.70;
 
     // ---- ④ 极弱的整体环境反光（俯视只有百分之几，不该看得见） ----
     vec3 R = reflect(-V, n);
