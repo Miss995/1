@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v83 · 16:30</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v84 · 16:36</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -312,6 +312,20 @@ float waterHeight(vec2 p, float t) {
     return clamp(h * 0.5 + 0.5, 0.0, 1.0);   // 归一到 0..1
 }
 
+// waterHeight 的解析梯度：h = Σ A·sin(k·D·p + ωt)，∇h = Σ A·k·D·cos(...)。
+// 比数值差分省三次 waterHeight 采样，而且跟高度场严格是同一套波。
+vec2 waterGrad(vec2 p, float t) {
+    vec2 g = vec2(0.0);
+    float ph;
+    ph = dot(p, vec2( 0.96,  0.28)) * 12.5 + t * 1.10;
+    g += vec2( 0.96,  0.28) * (12.5 * cos(ph) * 0.85);
+    ph = dot(p, vec2( 0.88,  0.47)) * 19.4 - t * 0.85;
+    g += vec2( 0.88,  0.47) * (19.4 * cos(ph) * 0.10);
+    ph = dot(p, vec2( 0.99, -0.14)) * 29.8 + t * 1.35;
+    g += vec2( 0.99, -0.14) * (29.8 * cos(ph) * 0.05);
+    return g * 0.5;   // 跟 waterHeight 里那个 *0.5 对齐
+}
+
 // ---------- 涟漪 ----------
 float rippleH(vec2 uv, float t) {
     float h = 0.0;
@@ -484,10 +498,13 @@ void main() {
     float cid = floor(n1) * 37.0 + floor(n2) * 91.0;     // 两条线的层级编号 = 格子 id
     // 每格的亮度 = 这一格的水面朝向光源的多少（不是随机数）
     // 法线取该点梯度 —— 格子是被等值线圈出来的，一圈之内朝向基本一致，所以看着是一块块纯色。
-    vec3 nGrid = normalize(vec3(-(gWave * 3.0 + gRip * 0.02), 1.0));
+    // 法线用同一套波的解析梯度：不依赖「大浪」滑杆（那个默认是 0，gWave 一直是 0，
+    // 所以之前法线竖直、每格亮度一样，看着就是平的）。
+    vec2 gGrid = waterGrad(pp2, t);
+    vec3 nGrid = normalize(vec3(-gGrid * 0.12, 1.0));         // 0.12 是压一下：k 到 30，梯度量级很大
     float litGrid = dot(nGrid, L);
-    float litQ = floor(litGrid * 4.0) / 4.0;                  // 量化 4 档：明暗泾渭分明
-    float cellShade = clamp(litQ * 0.92, -0.23, 0.23);
+    float litQ = floor(litGrid * 6.0) / 6.0;                  // 量化 6 档：明暗有层次但不糊
+    float cellShade = clamp(litQ * 0.85, -0.20, 0.20);        // 「稍微」：±20%
     float shadeWave = cellShade;
 
     // ---- 网格调试模式：只画网格本身，其他全关 ----
