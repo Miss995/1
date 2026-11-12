@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v28 · 10:41</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v29 · 10:46</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -261,6 +261,11 @@ float rippleH(vec2 uv, float t) {
         float innerMask = smoothstep(0.0, uRipR[i] * 0.75, dist);
         h += hAcc * fall * spread * edgeFade * innerMask * r.w;
 
+        // 手指压下去的那一下：中心是凹的。
+        // 波不是"手指推出来的"，是水回填过冲出来的 —— 所以先有坑，坑很快填平。
+        float dent = exp(-pow(dist / (uRipR[i] * 1.15), 2.0));
+        h -= dent * 2.4 * exp(-age * 6.0) * r.w;
+
     }
     return h;
 }
@@ -340,7 +345,7 @@ void main() {
     // 不是阴影 —— 水面不挡光。坡面朝天那一侧反的是天（亮），
     // 背过去那一侧反的是对岸和水底（暗）。连续渐变，没有一条硬边。
     // 用梯度在光向(水平分量)上的投影算坡面朝向，量压在 ±12% 以内。
-    float facing = gRip.x * L.x + gRip.y * L.y;
+    float facing = -(gRip.x * L.x + gRip.y * L.y);   // gRip 指上坡向，法线要取反
     float shade = clamp(facing * uSurfShade * 0.0028, -0.12, 0.12);
     col *= (1.0 + shade);
 
