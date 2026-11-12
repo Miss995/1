@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v82 · 16:15</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v83 · 16:30</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -303,9 +303,12 @@ float waterHeight(vec2 p, float t) {
     // 看着就是"水流着流着突然凹进去一块"。
     // 真实海面是风推着一个方向，其余都是碎浪，抵不到 0。
     float h = 0.0;
-    h += waveSin(dot(p, vec2( 0.96,  0.28)) * 5.2  + t * 1.10) * 0.85;
-    h += waveSin(dot(p, vec2( 0.88,  0.47)) * 8.1  - t * 0.85) * 0.10;
-    h += waveSin(dot(p, vec2( 0.99, -0.14)) * 12.4 + t * 1.35) * 0.05;
+    // k 从 5.2 提到 12.5：波长从 ~1.2 缩到 ~0.5。
+    // 屏幕宽只有 1（p 在 -0.5..0.5），原来一个屏只装一个多周期 = 大浪；
+    // 现在装两三个周期，才是"一片水"而不是"一个浪头"。
+    h += waveSin(dot(p, vec2( 0.96,  0.28)) * 12.5 + t * 1.10) * 0.85;
+    h += waveSin(dot(p, vec2( 0.88,  0.47)) * 19.4 - t * 0.85) * 0.10;
+    h += waveSin(dot(p, vec2( 0.99, -0.14)) * 29.8 + t * 1.35) * 0.05;
     return clamp(h * 0.5 + 0.5, 0.0, 1.0);   // 归一到 0..1
 }
 
