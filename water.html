@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v99 · 18:45</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v100 · 18:51</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -590,11 +590,17 @@ void main() {
     // 真实的焦散是断续的亮点，不是一整条线，所以在边界上再挑一部分点。
     // 按空间坐标判，不按格子判：
     // 用 wc.z（最近格子哈希）的话，一整格的边界会同时亮或同时灭 → 看着有的有有的没有。
-    // 六波交叉之后边界密了好几倍，原来"一半边界亮 + 强度1.10"会糊成一片白。
-    // 门槛 0.50→0.75（只有 25% 的边界亮），强度 1.10→0.45。
-    float caustMask = step(0.75, hash21(floor(p * 90.0)));
-    float caust = (1.0 - border) * caustMask * uCaustic;
-    col += caust * vec3(0.88, 0.98, 1.0) * 0.45;
+    // ---- 光斑（焦散）----
+    // 以前画在【等高线】上（(1.0 - border)）——那等于"面与面的交界处发亮"。
+    // 两条波时边界稀，看着还行；六个波交叉后边界密了好几倍，一拉滑杆就糊成一片白线。
+    //
+    // 换成按【波峰】找：真正的水面焦散是"光穿过波峰被聚焦"，亮的是峰顶，不是交界线。
+    // 判据直接用 h1（高度，0..1）：越高越接近峰顶。
+    // 好处是数量级稳定 —— 波再密，峰顶的量不会跟着边界一起翻倍。
+    // caustMask 保留一点点断续，因为真实焦散是碎的、不是一整片。
+    float caustMask = step(0.30, hash21(floor(p * 55.0)));
+    float caus      = smoothstep(0.58, 0.84, h1) * caustMask * uCaustic;
+    col += caus * vec3(0.88, 0.98, 1.0) * 1.10;
     col *= (1.0 + shadeRip);
     col = mix(col, shadeTint, 0.16 * border);   // 边界密了，混色要收（原来 0.30）   // border=0 在线上不受影响
 
