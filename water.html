@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v44 · 12:41</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v45 · 12:45</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -239,8 +239,11 @@ vec3 under(vec2 uv) {
 // ---------- 大浪 ----------
 float waterHeight(vec2 p, float t) {
     float h = 0.0;
-    h += fbm(p * 0.55 + vec2( t * 0.10, t * 0.06)) * 1.00;
-    h += fbm(p * 1.50 - vec2( t * 0.18,-t * 0.12)) * 0.48;
+    // 浪必须是"长脊"，不能是"圆包"。
+    // 圆包上切等值线 = 一个个孤立的环（各跑各的）；长脊上切 = 贯穿的带子（连得起来）。
+    // 所以 x 压扁、y 拉高，把圆包拉成横着的长条。
+    h += fbm(vec2(p.x * 0.42, p.y * 1.55) + vec2( t * 0.10, t * 0.06)) * 1.00;
+    h += fbm(vec2(p.x * 1.10, p.y * 3.20) - vec2( t * 0.18,-t * 0.12)) * 0.48;
     return h;
 }
 
@@ -345,7 +348,7 @@ void main() {
     // 浪动线就动、浪有形线就有形 —— 它本来就在水里，不靠外部图案去凑。
     float bandT = (hWave - 0.5) * 7.0 * uWave + rH * 1.6;
     float band = abs(fract(bandT) - 0.5) * 2.0;
-    float caus = 1.0 - smoothstep(0.0, 0.26, band);
+    float caus = 1.0 - smoothstep(0.0, 0.055, band);   // 细亮线，不要糊
     // 有波才有光斑：涟漪的峰、大浪的坡，都算
     float causFocus = smoothstep(0.05, 0.45, rH);
     causFocus = max(causFocus, smoothstep(0.006, 0.045, length(gWave)));
