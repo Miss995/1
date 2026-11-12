@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v37 · 12:18</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v38 · 12:19</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -340,7 +340,11 @@ void main() {
     // 水里的光斑：光穿过波峰被聚焦打在水底 —— 波峰处聚成细亮纹，平坦处几乎没有。
     // 频率要高（一屏几十条），强度要克制，而且必须跟波挂钩。
     // 骨架换成细胞交界线（多边形、有棱角），叠加一层细的做扰动
-    vec2 cp = uvw * vec2(15.0, 23.0);
+    // ★ 关键：光斑必须被波"扯"着走，不能是一张钉在屏幕上的图案。
+    // 用波的梯度去推细胞图案的坐标 —— 波峰扫过时图案被拉变形，光就跟着动。
+    // 不推的话，不管波跑到哪，这层花纹都待在原地（那就是"不跟水走"）。
+    float causWarp = 1.0 - smoothstep(0.0, 0.55, length(gRip) * 0.35);
+    vec2 cp = uvw * vec2(15.0, 23.0) + gRip * 2.6;
     float ce = cellEdge(cp + vec2(t * 0.10, t * 0.06));
     float ce2 = cellEdge(cp * 2.3 + 7.0 - vec2(t * 0.14, -t * 0.09));
     float caus = 1.0 - smoothstep(0.0, 0.055, ce);            // 硬边折线
@@ -351,7 +355,7 @@ void main() {
     // 再平方收紧一次，让只有真正的波峰才聚焦出亮纹。
     float causFocus = smoothstep(0.15, 0.90, rH);
     causFocus *= causFocus;
-    col += caus * uCaustic * causFocus * vec3(0.42, 0.86, 0.86) * 0.45;
+    col += caus * uCaustic * causFocus * vec3(0.42, 0.86, 0.86) * 0.60;
 
     // 水色：薄薄一层蓝，不能压死底下的东西
     vec3 waterCol = vec3(0.13, 0.36, 0.46);
