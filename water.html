@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v93 · 17:57</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v94 · 18:03</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -313,17 +313,31 @@ float waterHeight(vec2 p, float t) {
     //
     // 位移相位必须用【原位置 p】算（不是挪过的位置），否则会算成"位移自己推自己"。
     // Q = uGerstner ≤ 0.65 时 Q*A = 0.40 < 半个波长 0.37… 取 0.55 → 0.34，不到半个波长，不会翻过去。
+    // 主波
     vec2  D1 = vec2(0.96, 0.28);
     float k1 = 8.5;
     float A1 = 0.62;
     float ph1 = dot(p, D1) * k1 + t * 0.85;
-    vec2  disp = D1 * (uGerstner * A1 * cos(ph1));
+
+    // 副波：跟主波夹角约 60°。**它也必须是 Gerstner** ——
+    // 如果只给主波做位移、副波还是纯 sin，那副波的等值线又变回直线，
+    // 两组线一组弯一组直，反而更假。
+    // 位移量分开放：主波 Q=1.0u、副波 Q=0.64u。
+    // 两个位移是**矢量相加**（方向差 60°），合成后最大 ≈ sqrt(0.34² + 0.10²) = 0.35，
+    // 仍小于半个波长（2π/8.5 = 0.74 的一半 = 0.37），不会自己翻过去。
+    vec2  D2 = vec2(-0.45, 0.89);
+    float k2 = 14.0;
+    float A2 = 0.28;
+    float ph2 = dot(p, D2) * k2 + t * 1.20;
+
+    vec2 disp = D1 * (uGerstner        * A1 * cos(ph1))
+              + D2 * (uGerstner * 0.64 * A2 * cos(ph2));
 
     vec2 pw = p + disp;
-    float swell = waveSin(dot(pw, D1) * k1 + t * 0.85) * A1;
 
-    // 碎浪：先关着。主波形状确认了再一层层加回来。
-    float chop  = 0.0;
+    // A1 + A2 = 0.90 < 1.0 → 两波相加也抵不到 0，不会出闭合的坑。
+    float swell = waveSin(dot(pw, D1) * k1 + t * 0.85) * A1;
+    float chop  = waveSin(dot(pw, D2) * k2 + t * 1.20) * A2;
     // chop += waveSin(dot(p, vec2( 0.42,  0.91)) * 15.0 + t * 1.35) * 0.15;
     // chop += waveSin(dot(p, vec2(-0.66,  0.75)) * 20.0 - t * 1.10) * 0.11;
     // chop += waveSin(dot(p, vec2( 0.85, -0.53)) * 26.0 + t * 1.55) * 0.08;
@@ -335,15 +349,25 @@ float waterHeight(vec2 p, float t) {
 vec2 waterGrad(vec2 p, float t) {
     vec2 g = vec2(0.0);
     float ph;
-    // Gerstner：把点按水平位移挪过去，再在那里取梯度（跟 waterHeight 一致）。
+    // 跟 waterHeight 的 Gerstner 严格一致：先把点挪过去，再在那里取两个波的梯度。
     vec2  D1g = vec2(0.96, 0.28);
     float k1g = 8.5;
     float A1g = 0.62;
     float ph1g = dot(p, D1g) * k1g + t * 0.85;
-    vec2  pwg  = p + D1g * (uGerstner * A1g * cos(ph1g));
+
+    vec2  D2g = vec2(-0.45, 0.89);
+    float k2g = 14.0;
+    float A2g = 0.28;
+    float ph2g = dot(p, D2g) * k2g + t * 1.20;
+
+    vec2 pwg = p + D1g * (uGerstner        * A1g * cos(ph1g))
+                 + D2g * (uGerstner * 0.64 * A2g * cos(ph2g));
+
     ph = dot(pwg, D1g) * k1g + t * 0.85;
     g += D1g * (k1g * cos(ph) * A1g);
-    // 碎浪同步关掉（跟 waterHeight 保持一致）
+
+    ph = dot(pwg, D2g) * k2g + t * 1.20;
+    g += D2g * (k2g * cos(ph) * A2g);
     // ph = dot(p, vec2( 0.42,  0.91)) * 15.0 + t * 1.35;
     // g += vec2( 0.42,  0.91) * (15.0 * cos(ph) * 0.15);
     // ph = dot(p, vec2(-0.66,  0.75)) * 20.0 - t * 1.10;
