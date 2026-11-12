@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v50 · 12:57</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v51 · 13:13</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -396,9 +396,10 @@ void main() {
     // 背过去那一侧反的是对岸和水底（暗）。连续渐变，没有一条硬边。
     // 用梯度在光向(水平分量)上的投影算坡面朝向，量压在 ±12% 以内。
     // 涟漪：量压在小范围，别抢戏
-    float shadeRip = clamp(-(gRip.x * L.x + gRip.y * L.y) * uSurfShade * 0.0028, -0.12, 0.12);
-    // 大浪：gWave 比 gRip 小两个数量级，必须单独放大；浪的明暗本来就比细纹明显
-    float shadeWave = clamp(-(gWave.x * L.x + gWave.y * L.y) * 0.95, -0.45, 0.45);
+    // 水面不投影。亮是反光增强，暗只是看到更深的水 ——
+    // 量级要小，而且不对称：往上给得出，往下压不动太多。
+    float shadeRip  = clamp(-(gRip.x * L.x + gRip.y * L.y) * uSurfShade * 0.0028, -0.06, 0.08);
+    float shadeWave = clamp(-(gWave.x * L.x + gWave.y * L.y) * 0.32, -0.10, 0.22);
     col *= (1.0 + shadeRip + shadeWave);
 
     // ---- ④ 极弱的整体环境反光（俯视只有百分之几，不该看得见） ----
