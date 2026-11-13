@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v119 · 11:10</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v120 · 11:18</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -488,10 +488,12 @@ void main() {
     float curY = (hYp + hYm - 2.0 * h0);
     float kRef = 6.5;                              // 折射强度：越大网越密（14 太密，像蛛网）
     float det = (1.0 + kRef * curX) * (1.0 + kRef * curY);
-    // 线宽：窗口放大一倍，画出"粗亮线"而不是细丝；
-    // 同时用 det 的绝对值做衰减——真正贴着 0 的那一小段最亮，往外渐隐，边缘才不会死硬。
-    float caustV = (1.0 - smoothstep(0.0, 1.15, abs(det))) * uCaustic;
-    col += caustV * vec3(0.92, 0.99, 1.0) * 0.85;
+    // ★ 线宽 = 窗口，但窗口会跟 kRef 打架：kRef 小 → 网稀，可 det 在 0 附近停留得久 → 线自动变粗。
+    //   1.15 那次就是窗口太宽，整屏变成一层渐变的雾（没有一条硬边）。
+    //   现在窗口压到 0.26，再用 pow 把边缘再削硬一层 —— 芯亮、边上一下就断。
+    float d0 = abs(det);
+    float caustV = pow(1.0 - smoothstep(0.0, 0.26, d0), 1.6) * uCaustic;
+    col += caustV * vec3(0.92, 0.99, 1.0) * 0.95;
 
     // 水里的光斑：光穿过波峰被聚焦打在水底 —— 波峰处聚成细亮纹，平坦处几乎没有。
     // 频率要高（一屏几十条），强度要克制，而且必须跟波挂钩。
