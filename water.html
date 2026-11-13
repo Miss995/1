@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v127 · 12:15</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v128 · 12:22</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -515,13 +515,16 @@ void main() {
     //     ⚠️ 之前用 h 的等值线是错的：那画的是"绕鼓包的闭合圈"，不是光压出来的网。
     // ★★ 焦散 = 细胞噪声的边界（不是水面曲率）。
     //    qc 先用水面本身的高度场扭曲一下，网才会跟着水一起流动、不是死贴图。
-    // 密度：一屏约七格（参考照片量出来的）。5.5 时一屏五十多格，太密。
-    // 扭曲必须用【低频】水面：全频里的高频成分会把边界线扯成毛刺和虚线。
+    // 密度：一屏约七格（参考照片量出来的）。
     vec2 qc = p * 2.8 + vec2(t * 0.09, t * 0.055);
-    qc += vec2(waterHeightLow(p + vec2(0.02, 0.0), t),
-               waterHeightLow(p + vec2(0.0, 0.02), t)) * 8.0;
-    float fx = clamp(voronoiF1(qc), 0.0, 1.0);
-    float caustV = pow(fx, 4.0) * uCaustic;
+    // ⚠️ 扭曲必须是【低梯度】的：格子的空间梯度是 2.8，
+    //    扭曲梯度要压到它两成左右，否则边界会被扯成冰裂纹（v127）。
+    qc += vec2(sin(p.y * 1.8 + t * 0.55), cos(p.x * 1.6 + t * 0.42)) * 0.35;
+    // ⚠️ 用 F2-F1（cellEdge）画边界，不用 F1 高次方：
+    //    F1 的边界亮度取决于格子大小，格子一不均就有的亮有的断（虚线）。
+    //    F2-F1 在边界上严格等于 0 → 等值线连续，格子大小不影响亮度。
+    float eC = cellEdge(qc);
+    float caustV = (1.0 - smoothstep(0.0, 0.055, eC)) * uCaustic;
     col += caustV * vec3(0.92, 0.99, 1.0) * 0.9;
 
 
