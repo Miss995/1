@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v116 · 10:51</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v117 · 10:58</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -476,7 +476,10 @@ void main() {
     //     为什么不画 Worley：那张网再漂亮也跟这片水没关系，所以永远像贴图（v113-v115 就是）。
     //     为什么不切曲率：lap 会把高频放大，等值线碎成沙（v112）。
     //     h 本身是平滑的 —— 切它的等值线，低谷那几圈天然顺着沟走，形状跟水同源、动起来就跟着动。
-    float hc = waterHeight(cp, t);
+    // ⚠️ 用 p（未折射），不能用 cp/uvw：那样等于把高度场先用折射扭一遍再切等高线，
+    //    水扭一次、光斑再扭一次 = 扭两遍，线被扯得夸张（v116 就是）。
+    //    光斑跟水面明暗必须落在同一个坐标系里，沟和线才对得上。
+    float hc = waterHeight(p, t);
     float caustBand = abs(fract(hc * 7.0) - 0.5) * 2.0;   // 0 = 正好在一条等高线上
     float causLine  = 1.0 - smoothstep(0.0, 0.16, caustBand);  // 线宽
     float causAmp   = smoothstep(0.62, 0.30, hc);              // 只留低谷（沟），鼓包顶上不画
