@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v140 · 16:31</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v141 · 16:36</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -94,6 +94,12 @@
   <div class="row"><label>光斑</label><input id="s_caus"  type="range" min="0"   max="150" value="60"><span class="val" id="v_caus">60</span></div>
   <div class="row"><label>亮面</label><input id="s_bright" type="range" min="0" max="100" value="60"><span class="val" id="v_bright">60</span></div>
   <div class="row"><label>Gerstner</label><input id="s_gerstner" type="range" min="0" max="100" value="55"><span class="val" id="v_gerstner">55</span></div>
+  <div class="row"><label>波1 16.3°</label><input id="s_w1" type="range" min="0" max="100" value="100"><span class="val" id="v_w1">100</span></div>
+  <div class="row"><label>波2 -34.8°</label><input id="s_w2" type="range" min="0" max="100" value="100"><span class="val" id="v_w2">100</span></div>
+  <div class="row"><label>波3 70.1°</label><input id="s_w3" type="range" min="0" max="100" value="100"><span class="val" id="v_w3">100</span></div>
+  <div class="row"><label>波4 -44.6°</label><input id="s_w4" type="range" min="0" max="100" value="100"><span class="val" id="v_w4">100</span></div>
+  <div class="row"><label>波5 126.9°</label><input id="s_w5" type="range" min="0" max="100" value="100"><span class="val" id="v_w5">100</span></div>
+  <div class="row"><label>波6 21.7°</label><input id="s_w6" type="range" min="0" max="100" value="100"><span class="val" id="v_w6">100</span></div>
   <div class="row"><label>切面</label><input id="s_slice" type="range" min="30"  max="800" value="200"><span class="val" id="v_slice">200</span></div>
 
   <div class="btns">
@@ -139,6 +145,12 @@ uniform float uDbgGrid;
 uniform float uDbgWave;
 uniform float uGerstner;
 uniform float uBright;
+uniform float uW1;
+uniform float uW2;
+uniform float uW3;
+uniform float uW4;
+uniform float uW5;
+uniform float uW6;
 uniform float uBaseGlow;
 
 uniform vec4 uRipples[14];
@@ -324,16 +336,16 @@ float voronoiF1(vec2 q) {
 
 float waterHeightLow(vec2 p, float t) {
     vec2 disp = vec2(0.0);
-    disp += vec2( 0.96,  0.28) * (uGerstner * 0.35 * cos(dot(p, vec2( 0.96,  0.28)) * 8.5 + t * 0.85));
-    disp += vec2( 0.82, -0.57) * (uGerstner * 0.22 * cos(dot(p, vec2( 0.82, -0.57)) * 13.0 + t * 1.15));
-    disp += vec2( 0.34,  0.94) * (uGerstner * 0.14 * cos(dot(p, vec2( 0.34,  0.94)) * 19.5 + t * 1.45));
-    disp += vec2( 0.71, -0.70) * (uGerstner * 0.09 * cos(dot(p, vec2( 0.71, -0.70)) * 27.0 + t * 1.75));
-    disp += vec2(-0.60,  0.80) * (uGerstner * 0.06 * cos(dot(p, vec2(-0.60,  0.80)) * 38.0 + t * 2.05));
-    disp += vec2( 0.93,  0.37) * (uGerstner * 0.04 * cos(dot(p, vec2( 0.93,  0.37)) * 52.0 + t * 2.35));
+    disp += vec2( 0.96,  0.28) * (uGerstner * 0.35 * uW1 * cos(dot(p, vec2( 0.96,  0.28)) * 8.5 + t * 0.85));
+    disp += vec2( 0.82, -0.57) * (uGerstner * 0.22 * uW2 * cos(dot(p, vec2( 0.82, -0.57)) * 13.0 + t * 1.15));
+    disp += vec2( 0.34,  0.94) * (uGerstner * 0.14 * uW3 * cos(dot(p, vec2( 0.34,  0.94)) * 19.5 + t * 1.45));
+    disp += vec2( 0.71, -0.70) * (uGerstner * 0.09 * uW4 * cos(dot(p, vec2( 0.71, -0.70)) * 27.0 + t * 1.75));
+    disp += vec2(-0.60,  0.80) * (uGerstner * 0.06 * uW5 * cos(dot(p, vec2(-0.60,  0.80)) * 38.0 + t * 2.05));
+    disp += vec2( 0.93,  0.37) * (uGerstner * 0.04 * uW6 * cos(dot(p, vec2( 0.93,  0.37)) * 52.0 + t * 2.35));
     vec2 pw = p + disp;
     float h = 0.0;
-    h += waveSin(dot(pw, vec2( 0.96,  0.28)) * 8.5 + t * 0.85) * 0.35;
-    h += waveSin(dot(pw, vec2( 0.82, -0.57)) * 13.0 + t * 1.15) * 0.22;
+    h += waveSin(dot(pw, vec2( 0.96,  0.28)) * 8.5 + t * 0.85) * 0.35 * uW1;
+    h += waveSin(dot(pw, vec2( 0.82, -0.57)) * 13.0 + t * 1.15) * 0.22 * uW2;
     return h;
 }
 
@@ -365,22 +377,22 @@ float waterHeight(vec2 p, float t) {
     //     最紧的是 k=52 那个：位移 0.04u，半波长 π/52=0.060，够。
     //  方向各自错开 10~30°，交叉点才不会整齐排队。
     vec2 disp = vec2(0.0);
-    disp += vec2( 0.96,  0.28) * (uGerstner * 0.35 * cos(dot(p, vec2( 0.96,  0.28)) * 8.5 + t * 0.85));
-    disp += vec2( 0.82, -0.57) * (uGerstner * 0.22 * cos(dot(p, vec2( 0.82, -0.57)) * 13.0 + t * 1.15));
-    disp += vec2( 0.34,  0.94) * (uGerstner * 0.14 * cos(dot(p, vec2( 0.34,  0.94)) * 19.5 + t * 1.45));
-    disp += vec2( 0.71, -0.70) * (uGerstner * 0.09 * cos(dot(p, vec2( 0.71, -0.70)) * 27.0 + t * 1.75));
-    disp += vec2(-0.60,  0.80) * (uGerstner * 0.06 * cos(dot(p, vec2(-0.60,  0.80)) * 38.0 + t * 2.05));
-    disp += vec2( 0.93,  0.37) * (uGerstner * 0.04 * cos(dot(p, vec2( 0.93,  0.37)) * 52.0 + t * 2.35));
+    disp += vec2( 0.96,  0.28) * (uGerstner * 0.35 * uW1 * cos(dot(p, vec2( 0.96,  0.28)) * 8.5 + t * 0.85));
+    disp += vec2( 0.82, -0.57) * (uGerstner * 0.22 * uW2 * cos(dot(p, vec2( 0.82, -0.57)) * 13.0 + t * 1.15));
+    disp += vec2( 0.34,  0.94) * (uGerstner * 0.14 * uW3 * cos(dot(p, vec2( 0.34,  0.94)) * 19.5 + t * 1.45));
+    disp += vec2( 0.71, -0.70) * (uGerstner * 0.09 * uW4 * cos(dot(p, vec2( 0.71, -0.70)) * 27.0 + t * 1.75));
+    disp += vec2(-0.60,  0.80) * (uGerstner * 0.06 * uW5 * cos(dot(p, vec2(-0.60,  0.80)) * 38.0 + t * 2.05));
+    disp += vec2( 0.93,  0.37) * (uGerstner * 0.04 * uW6 * cos(dot(p, vec2( 0.93,  0.37)) * 52.0 + t * 2.35));
 
     vec2 pw = p + disp;
 
     float h = 0.0;
-    h += waveSin(dot(pw, vec2( 0.96,  0.28)) * 8.5 + t * 0.85) * 0.35;
-    h += waveSin(dot(pw, vec2( 0.82, -0.57)) * 13.0 + t * 1.15) * 0.22;
-    h += waveSin(dot(pw, vec2( 0.34,  0.94)) * 19.5 + t * 1.45) * 0.14;
-    h += waveSin(dot(pw, vec2( 0.71, -0.70)) * 27.0 + t * 1.75) * 0.09;
-    h += waveSin(dot(pw, vec2(-0.60,  0.80)) * 38.0 + t * 2.05) * 0.0;
-    h += waveSin(dot(pw, vec2( 0.93,  0.37)) * 52.0 + t * 2.35) * 0.04;
+    h += waveSin(dot(pw, vec2( 0.96,  0.28)) * 8.5 + t * 0.85) * 0.35 * uW1;
+    h += waveSin(dot(pw, vec2( 0.82, -0.57)) * 13.0 + t * 1.15) * 0.22 * uW2;
+    h += waveSin(dot(pw, vec2( 0.34,  0.94)) * 19.5 + t * 1.45) * 0.14 * uW3;
+    h += waveSin(dot(pw, vec2( 0.71, -0.70)) * 27.0 + t * 1.75) * 0.09 * uW4;
+    h += waveSin(dot(pw, vec2(-0.60,  0.80)) * 38.0 + t * 2.05) * 0.0 * uW5;
+    h += waveSin(dot(pw, vec2( 0.93,  0.37)) * 52.0 + t * 2.35) * 0.04 * uW6;
     return clamp(h * 0.5 + 0.5, 0.0, 1.0);
 }
 
@@ -391,20 +403,20 @@ vec2 waterGrad(vec2 p, float t) {
     float ph;
     // 跟 waterHeight 严格一致：先把点按六波位移挪过去，再在那里取六项梯度。
     vec2 disp2 = vec2(0.0);
-    disp2 += vec2( 0.96,  0.28) * (uGerstner * 0.35 * cos(dot(p, vec2( 0.96,  0.28)) * 8.5 + t * 0.85));
-    disp2 += vec2( 0.82, -0.57) * (uGerstner * 0.22 * cos(dot(p, vec2( 0.82, -0.57)) * 13.0 + t * 1.15));
-    disp2 += vec2( 0.34,  0.94) * (uGerstner * 0.14 * cos(dot(p, vec2( 0.34,  0.94)) * 19.5 + t * 1.45));
-    disp2 += vec2( 0.71, -0.70) * (uGerstner * 0.09 * cos(dot(p, vec2( 0.71, -0.70)) * 27.0 + t * 1.75));
-    disp2 += vec2(-0.60,  0.80) * (uGerstner * 0.06 * cos(dot(p, vec2(-0.60,  0.80)) * 38.0 + t * 2.05));
-    disp2 += vec2( 0.93,  0.37) * (uGerstner * 0.04 * cos(dot(p, vec2( 0.93,  0.37)) * 52.0 + t * 2.35));
+    disp2 += vec2( 0.96,  0.28) * (uGerstner * 0.35 * uW1 * cos(dot(p, vec2( 0.96,  0.28)) * 8.5 + t * 0.85));
+    disp2 += vec2( 0.82, -0.57) * (uGerstner * 0.22 * uW2 * cos(dot(p, vec2( 0.82, -0.57)) * 13.0 + t * 1.15));
+    disp2 += vec2( 0.34,  0.94) * (uGerstner * 0.14 * uW3 * cos(dot(p, vec2( 0.34,  0.94)) * 19.5 + t * 1.45));
+    disp2 += vec2( 0.71, -0.70) * (uGerstner * 0.09 * uW4 * cos(dot(p, vec2( 0.71, -0.70)) * 27.0 + t * 1.75));
+    disp2 += vec2(-0.60,  0.80) * (uGerstner * 0.06 * uW5 * cos(dot(p, vec2(-0.60,  0.80)) * 38.0 + t * 2.05));
+    disp2 += vec2( 0.93,  0.37) * (uGerstner * 0.04 * uW6 * cos(dot(p, vec2( 0.93,  0.37)) * 52.0 + t * 2.35));
     vec2 pw2 = p + disp2;
 
-    g += vec2( 0.96,  0.28) * (8.5 * cos(dot(pw2, vec2( 0.96,  0.28)) * 8.5 + t * 0.85) * 0.35);
-    g += vec2( 0.82, -0.57) * (13.0 * cos(dot(pw2, vec2( 0.82, -0.57)) * 13.0 + t * 1.15) * 0.22);
-    g += vec2( 0.34,  0.94) * (19.5 * cos(dot(pw2, vec2( 0.34,  0.94)) * 19.5 + t * 1.45) * 0.14);
-    g += vec2( 0.71, -0.70) * (27.0 * cos(dot(pw2, vec2( 0.71, -0.70)) * 27.0 + t * 1.75) * 0.09);
-    g += vec2(-0.60,  0.80) * (38.0 * cos(dot(pw2, vec2(-0.60,  0.80)) * 38.0 + t * 2.05) * 0.06);
-    g += vec2( 0.93,  0.37) * (52.0 * cos(dot(pw2, vec2( 0.93,  0.37)) * 52.0 + t * 2.35) * 0.04);
+    g += vec2( 0.96,  0.28) * (8.5 * cos(dot(pw2, vec2( 0.96,  0.28)) * 8.5 + t * 0.85) * 0.35 * uW1);
+    g += vec2( 0.82, -0.57) * (13.0 * cos(dot(pw2, vec2( 0.82, -0.57)) * 13.0 + t * 1.15) * 0.22 * uW2);
+    g += vec2( 0.34,  0.94) * (19.5 * cos(dot(pw2, vec2( 0.34,  0.94)) * 19.5 + t * 1.45) * 0.14 * uW3);
+    g += vec2( 0.71, -0.70) * (27.0 * cos(dot(pw2, vec2( 0.71, -0.70)) * 27.0 + t * 1.75) * 0.09 * uW4);
+    g += vec2(-0.60,  0.80) * (38.0 * cos(dot(pw2, vec2(-0.60,  0.80)) * 38.0 + t * 2.05) * 0.06 * uW5);
+    g += vec2( 0.93,  0.37) * (52.0 * cos(dot(pw2, vec2( 0.93,  0.37)) * 52.0 + t * 2.35) * 0.04 * uW6);
     return g * 0.5;   // 跟 waterHeight 里那个 *0.5 对齐
 }
 
@@ -760,7 +772,7 @@ void main() {
 
   const U = {};
   ['uRes','uTime','uPitch','uFront','uDecay','uRefr','uNorm','uShine',
-   'uSpecPow','uTrans','uCaustic','uTint','uBg','uWave','uBaseGlow','uSlice','uDbgGrid','uDbgWave','uGerstner','uBright']
+   'uSpecPow','uTrans','uCaustic','uTint','uBg','uWave','uBaseGlow','uSlice','uDbgGrid','uDbgWave','uGerstner','uBright','uW1','uW2','uW3','uW4','uW5','uW6']
     .forEach(n => U[n] = gl.getUniformLocation(prog, n));
   U.uRipples = gl.getUniformLocation(prog, 'uRipples');
   U.uPhaseSpd = gl.getUniformLocation(prog, 'uPhaseSpd');
@@ -768,7 +780,7 @@ void main() {
   U.uSurfShade = gl.getUniformLocation(prog, 'uSurfShade');
 
   const S = { pitch:180, spd:200, front:28, decay:8, refr:40, norm:100,
-              shine:80, spec:90, trans:55, caus:60, surf:100, bg:0, wave:0, glow:0, slice:200, dbgGrid:0, dbgWave:0, gerstner:55, bright:60 };
+              shine:80, spec:90, trans:55, caus:60, surf:100, bg:0, wave:0, glow:0, slice:200, dbgGrid:0, dbgWave:0, gerstner:55, bright:60, w1:100, w2:100, w3:100, w4:100, w5:100, w6:100 };
   let paused = true, tAcc = 2.0, last = performance.now();
   let needDraw = true;
 
@@ -858,7 +870,7 @@ void main() {
   bind('pitch','pitch'); bind('spd','spd'); bind('front','front'); bind('decay','decay');
   bind('refr','refr');   bind('norm','norm');   bind('shine','shine');
   bind('spec','spec');   bind('trans','trans'); bind('caus','caus');
-  bind('surf','surf'); bind('wave','wave'); bind('slice','slice'); bind('gerstner','gerstner'); bind('bright','bright');
+  bind('surf','surf'); bind('wave','wave'); bind('slice','slice'); bind('gerstner','gerstner'); bind('w1','w1'); bind('w2','w2'); bind('w3','w3'); bind('w4','w4'); bind('w5','w5'); bind('w6','w6'); bind('bright','bright');
   document.querySelectorAll('[data-dbg]').forEach(btn => {
     btn.addEventListener('click', () => {
       const on = btn.classList.toggle('on');
@@ -942,6 +954,12 @@ void main() {
     gl.uniform1f(U.uDbgWave, S.dbgWave);
     gl.uniform1f(U.uGerstner, S.gerstner / 100.0);
     gl.uniform1f(U.uBright, S.bright / 100.0);
+    gl.uniform1f(U.uW1, S.w1 / 100.0);
+    gl.uniform1f(U.uW2, S.w2 / 100.0);
+    gl.uniform1f(U.uW3, S.w3 / 100.0);
+    gl.uniform1f(U.uW4, S.w4 / 100.0);
+    gl.uniform1f(U.uW5, S.w5 / 100.0);
+    gl.uniform1f(U.uW6, S.w6 / 100.0);
     gl.uniform1f(U.uBaseGlow, S.glow);
     gl.uniform4fv(U.uRipples, ripples);
     gl.uniform1fv(U.uRipR, ripR);
