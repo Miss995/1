@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v129 · 12:24</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v130 · 12:38</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -515,16 +515,16 @@ void main() {
     //     ⚠️ 之前用 h 的等值线是错的：那画的是"绕鼓包的闭合圈"，不是光压出来的网。
     // ★★ 焦散 = 细胞噪声的边界（不是水面曲率）。
     //    qc 先用水面本身的高度场扭曲一下，网才会跟着水一起流动、不是死贴图。
-    // 密度：一屏约七格（参考照片量出来的）。
-    vec2 qc = p * 4.8 + vec2(t * 0.09, t * 0.055);   // 密度：一屏约十个格子
-    // ⚠️ 扭曲必须是【低梯度】的：格子的空间梯度是 2.8，
-    //    扭曲梯度要压到它两成左右，否则边界会被扯成冰裂纹（v127）。
-    qc += vec2(sin(p.y * 1.8 + t * 0.55), cos(p.x * 1.6 + t * 0.42)) * 0.35;
-    // ⚠️ 用 F2-F1（cellEdge）画边界，不用 F1 高次方：
-    //    F1 的边界亮度取决于格子大小，格子一不均就有的亮有的断（虚线）。
-    //    F2-F1 在边界上严格等于 0 → 等值线连续，格子大小不影响亮度。
-    float eC = cellEdge(qc);
-    float caustV = (1.0 - smoothstep(0.0, 0.024, eC)) * uCaustic;
+    // ★★ 焦散直接用【水面自己的坡度】。
+    //    看原始波灰度图就能认出来：那些暗缝就是"面与面折在一起"的地方 ——
+    //    h 在那里变化最陡。光正是被这些折痕折过来、会聚成亮线的。
+    //    所以判据不是"h 等于某个值"（那画出来是等值线，六波叠加会退化成平行条纹），
+    //    而是"|∇h| 最大"。形状天然贴合水面，亮线多少也由水自己决定，不用另造一张网。
+    float eG = 0.02;
+    float gx = waterHeight(p + vec2(eG, 0.0), t) - waterHeight(p - vec2(eG, 0.0), t);
+    float gy = waterHeight(p + vec2(0.0, eG), t) - waterHeight(p - vec2(0.0, eG), t);
+    float gLen = length(vec2(gx, gy));
+    float caustV = smoothstep(0.055, 0.16, gLen) * uCaustic;
     col += caustV * vec3(0.92, 0.99, 1.0) * 0.9;
 
 
