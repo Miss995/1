@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v109 · 05:53</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v110 · 05:58</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -630,8 +630,9 @@ void main() {
     float lap = (hR + hL + hU + hD - 4.0 * hC) / (cEps * cEps);
     // 门槛按数量级来（二阶导数值比高度大几个量级），负得越多越亮
     // 除完 cEps² 之后 lap 量级在 0.01~0.5，阈值按这个来（之前写 60 是猫没算量级）
-    float caustV = smoothstep(0.02, 0.20, -lap) * uCaustic;
-    col += caustV * vec3(0.92, 0.99, 1.0) * 0.90;   // 提亮一点，往"反光"靠而不是"发白"
+    // 0.02 太低 —— 一大片都算凹，把整片水盖成灰膜。抬到 0.12：只挑真正凹得深的地方。
+    float caustV = smoothstep(0.12, 0.34, -lap) * uCaustic;
+    col += caustV * vec3(0.92, 0.99, 1.0) * 0.55;   // 0.90 太冲，压回 0.55
     col *= (1.0 + shadeRip);
     col = mix(col, shadeTint, 0.16 * border);   // 边界密了，混色要收（原来 0.30）   // border=0 在线上不受影响
 
