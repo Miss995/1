@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v133 · 12:54</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v134 · 12:58</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -526,9 +526,11 @@ void main() {
     //       两张图的格子数差 2.5 倍，怎么比都对不上。现在统一到 p*2.5。
     //    ② 判据错：做边缘检测（找对比大的地方）找的是"谷的两侧"，是两条；
     //       而要的那条线是"谷底"那一条。所以不该求导，该直接取最暗的。
+    //    h 的实际摆幅比想的窄（六波相位抵消，实际只有 ±0.2 左右），
+    //    所以 0.55 的拉伸 + 5 次方 = 全被压没了。先拉满摆幅、幂次降到 2，先看形状。
     float hh   = waterHeight(p * 2.5, t);
-    float gray = clamp(hh * 0.55 + 0.5, 0.0, 1.0);        // 跟原始波同一张灰度图
-    float caustV = pow(1.0 - gray, 5.0) * uCaustic;        // 取反 + 高次方 = 只剩最暗那几条
+    float gray = clamp(hh * 2.5 + 0.5, 0.0, 1.0);
+    float caustV = pow(1.0 - gray, 2.0) * uCaustic;
     col += caustV * vec3(0.92, 0.99, 1.0) * 1.2;
 
 
