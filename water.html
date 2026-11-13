@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v110 · 05:58</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v111 · 10:15</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -464,6 +464,23 @@ void main() {
 
     // ---- 水底（透亮的关键：底下被光照亮） ----
     vec3 col = under(uvw);
+    // ★★ 光斑挪到【池底】（物理上本来就该在这儿）：
+    //    以前加在 col 上，那时 col 已经是"池底+水色"的混合体，等于贴了一层纸，
+    //    既不跟水面扭、也不跟池底走。现在直接加在 under() 出来的池底上。
+    //    采样坐标用 uvw（已被折射扭过）→ 水面怎么晃，光斑就怎么扭。
+    vec2 cp = (uvw - 0.5) * vec2(aspect, 1.0);
+    float cEps = 0.006;
+    float hC = waterHeight(cp, t);
+    float hR = waterHeight(cp + vec2(cEps, 0.0), t);
+    float hL = waterHeight(cp - vec2(cEps, 0.0), t);
+    float hU = waterHeight(cp + vec2(0.0, cEps), t);
+    float hD = waterHeight(cp - vec2(0.0, cEps), t);
+    float lap = (hR + hL + hU + hD - 4.0 * hC) / (cEps * cEps);
+    // 门槛按数量级来（二阶导数值比高度大几个量级），负得越多越亮
+    // 除完 cEps² 之后 lap 量级在 0.01~0.5，阈值按这个来（之前写 60 是猫没算量级）
+    // 0.02 太低 —— 一大片都算凹，把整片水盖成灰膜。抬到 0.12：只挑真正凹得深的地方。
+    float caustV = smoothstep(0.12, 0.34, -lap) * uCaustic;
+    col += caustV * vec3(0.92, 0.99, 1.0) * 0.55;   // 0.90 太冲，压回 0.55
 
     // 水里的光斑：光穿过波峰被聚焦打在水底 —— 波峰处聚成细亮纹，平坦处几乎没有。
     // 频率要高（一屏几十条），强度要克制，而且必须跟波挂钩。
@@ -621,18 +638,6 @@ void main() {
     //   lap = (hR + hL + hU + hD - 4h) / dx²   ← 凹处为负，凸处为正
     //   取负值 → 凹处亮
     // ⚠️ 不能借用别处的 e —— 它定义在上一个代码块里，这里看不见（上一版全黑就是这个）。
-    float cEps = 0.006;
-    float hC = waterHeight(p, t);
-    float hR = waterHeight(p + vec2(cEps, 0.0), t);
-    float hL = waterHeight(p - vec2(cEps, 0.0), t);
-    float hU = waterHeight(p + vec2(0.0, cEps), t);
-    float hD = waterHeight(p - vec2(0.0, cEps), t);
-    float lap = (hR + hL + hU + hD - 4.0 * hC) / (cEps * cEps);
-    // 门槛按数量级来（二阶导数值比高度大几个量级），负得越多越亮
-    // 除完 cEps² 之后 lap 量级在 0.01~0.5，阈值按这个来（之前写 60 是猫没算量级）
-    // 0.02 太低 —— 一大片都算凹，把整片水盖成灰膜。抬到 0.12：只挑真正凹得深的地方。
-    float caustV = smoothstep(0.12, 0.34, -lap) * uCaustic;
-    col += caustV * vec3(0.92, 0.99, 1.0) * 0.55;   // 0.90 太冲，压回 0.55
     col *= (1.0 + shadeRip);
     col = mix(col, shadeTint, 0.16 * border);   // 边界密了，混色要收（原来 0.30）   // border=0 在线上不受影响
 
