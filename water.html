@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v113 · 10:34</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v114 · 10:37</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -472,7 +472,13 @@ void main() {
     // ★★ 光斑 = Worley 细胞边界（拿真实照片对过：水底光斑就是一堆闭合多边形拼的网）
     //    cellEdge 返回"到最近点与第二近点的距离差"，越靠边界越小。
     //    坐标被水面的波推着走 → 网跟着水扭，不是一张钉死的贴图。
-    vec2 cwarp = cp + gWave * 22.0;                       // 大浪把网格推开
+    // ★ 扭曲必须用「低频平滑的流」，不能用梯度 —— 梯度一跳，最近格子整个换人，线就被撕成渣（v113 那些白点）。
+    //   幅度也要小：0.05 ≈ 1.3 格，网会明显变形但不断裂。
+    vec2 flow = vec2(
+        vnoise(cp * 3.0 + vec2(t * 0.09, 0.0)),
+        vnoise(cp * 3.0 + vec2(0.0, t * 0.075) + 11.7)
+    ) - 0.5;
+    vec2 cwarp = cp + flow * 0.05;
     float cellFreq = 26.0;                                // 一屏大约十几格
     float ce = cellEdge(cwarp * cellFreq);
     float causEdge = 1.0 - smoothstep(0.0, 0.055, ce);    // 线宽：越窄越像细亮线
