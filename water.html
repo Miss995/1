@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v120 · 11:18</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v121 · 11:21</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -486,14 +486,16 @@ void main() {
     float hYm = waterHeight(p - vec2(0.0, e2), t);
     float curX = (hXp + hXm - 2.0 * h0);          // 简化：省掉 /e²，用 k 吸收量级
     float curY = (hYp + hYm - 2.0 * h0);
-    float kRef = 6.5;                              // 折射强度：越大网越密（14 太密，像蛛网）
+    // 尺度按真实泳池照片量：一屏约 7 格、线宽约占格子 5%。
+    // 6.5 时一屏几十格 → 密了四五倍，所以整体减半。
+    float kRef = 3.2;                              // 折射强度：越大网越密
     float det = (1.0 + kRef * curX) * (1.0 + kRef * curY);
     // ★ 线宽 = 窗口，但窗口会跟 kRef 打架：kRef 小 → 网稀，可 det 在 0 附近停留得久 → 线自动变粗。
     //   1.15 那次就是窗口太宽，整屏变成一层渐变的雾（没有一条硬边）。
     //   现在窗口压到 0.26，再用 pow 把边缘再削硬一层 —— 芯亮、边上一下就断。
     float d0 = abs(det);
-    float caustV = pow(1.0 - smoothstep(0.0, 0.26, d0), 1.6) * uCaustic;
-    col += caustV * vec3(0.92, 0.99, 1.0) * 0.95;
+    float caustV = pow(1.0 - smoothstep(0.0, 0.13, d0), 1.4) * uCaustic;
+    col += caustV * vec3(0.92, 0.99, 1.0) * 1.0;
 
     // 水里的光斑：光穿过波峰被聚焦打在水底 —— 波峰处聚成细亮纹，平坦处几乎没有。
     // 频率要高（一屏几十条），强度要克制，而且必须跟波挂钩。
