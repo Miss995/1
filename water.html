@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v123 · 12:01</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v124 · 12:05</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -301,6 +301,24 @@ vec3 worley3(vec2 p) {
     return vec3(sqrt(d1), sqrt(d2), hash21(cid));
 }
 
+// ★ 焦散专用的低频高度场：位移和坐标跟 waterHeight 完全一样（同源），
+//   只是高度只累加波长最长那两个波 —— 网自然稀，形状却跟着大浪走。
+//   （之前靠加大采样步长来变稀，等于把水低通了一遍，跟明暗脱节。）
+float waterHeightLow(vec2 p, float t) {
+    vec2 disp = vec2(0.0);
+    disp += vec2( 0.96,  0.28) * (uGerstner * 0.35 * cos(dot(p, vec2( 0.96,  0.28)) * 8.5 + t * 0.85));
+    disp += vec2( 0.82, -0.57) * (uGerstner * 0.22 * cos(dot(p, vec2( 0.82, -0.57)) * 13.0 + t * 1.15));
+    disp += vec2( 0.34,  0.94) * (uGerstner * 0.14 * cos(dot(p, vec2( 0.34,  0.94)) * 19.5 + t * 1.45));
+    disp += vec2( 0.71, -0.70) * (uGerstner * 0.09 * cos(dot(p, vec2( 0.71, -0.70)) * 27.0 + t * 1.75));
+    disp += vec2(-0.60,  0.80) * (uGerstner * 0.06 * cos(dot(p, vec2(-0.60,  0.80)) * 38.0 + t * 2.05));
+    disp += vec2( 0.93,  0.37) * (uGerstner * 0.04 * cos(dot(p, vec2( 0.93,  0.37)) * 52.0 + t * 2.35));
+    vec2 pw = p + disp;
+    float h = 0.0;
+    h += waveSin(dot(pw, vec2( 0.96,  0.28)) * 8.5 + t * 0.85) * 0.35;
+    h += waveSin(dot(pw, vec2( 0.82, -0.57)) * 13.0 + t * 1.15) * 0.22;
+    return h;
+}
+
 float waterHeight(vec2 p, float t) {
     // 不用 fbm。fbm 的峰是孤立鼓包 —— 在鼓包上切等值线就是一个个闭合的环，
     // 明暗和高光也各自围着包心转，三样东西看起来各跑各的。
@@ -478,23 +496,23 @@ void main() {
     //     这个"压缩了多少"就是映射的行列式：det = (1+k·h_xx)(1+k·h_yy)（忽略交叉项，省一半采样）。
     //     det 接近 0 → 压到极限 → 焦散线。它跟水面凹凸是同一样东西长出来的，所以必然对得上。
     //     ⚠️ 之前用 h 的等值线是错的：那画的是"绕鼓包的闭合圈"，不是光压出来的网。
-    float e2 = 0.040;   // 采样步长：控制网的【空间尺度】。e2 大=只看大起伏=网稀
-    float h0  = waterHeight(p, t);
-    float hXp = waterHeight(p + vec2(e2, 0.0), t);
-    float hXm = waterHeight(p - vec2(e2, 0.0), t);
-    float hYp = waterHeight(p + vec2(0.0, e2), t);
-    float hYm = waterHeight(p - vec2(0.0, e2), t);
+    float e2 = 0.050;   // 采样步长（只用于低频场，量级跟着低频波走）
+    float h0  = waterHeightLow(p, t);
+    float hXp = waterHeightLow(p + vec2(e2, 0.0), t);
+    float hXm = waterHeightLow(p - vec2(e2, 0.0), t);
+    float hYp = waterHeightLow(p + vec2(0.0, e2), t);
+    float hYm = waterHeightLow(p - vec2(0.0, e2), t);
     float curX = (hXp + hXm - 2.0 * h0);          // 简化：省掉 /e²，用 k 吸收量级
     float curY = (hYp + hYm - 2.0 * h0);
     // ⚠️ 实测：曲率典型值 0.02~0.05（不是 0.002）。kRef 只决定"能不能过零"，
     //    过不了零 = 一个像素都不亮（v121 拉滑杆没反应就是这个）。网的【密度】由 e2 决定。
-    float kRef = 3.5;
+    float kRef = 16.0;
     float det = (1.0 + kRef * curX) * (1.0 + kRef * curY);
     // ★ 线宽 = 窗口，但窗口会跟 kRef 打架：kRef 小 → 网稀，可 det 在 0 附近停留得久 → 线自动变粗。
     //   1.15 那次就是窗口太宽，整屏变成一层渐变的雾（没有一条硬边）。
     //   现在窗口压到 0.26，再用 pow 把边缘再削硬一层 —— 芯亮、边上一下就断。
     float d0 = abs(det);
-    float caustV = pow(1.0 - smoothstep(0.0, 0.30, d0), 1.4) * uCaustic;
+    float caustV = pow(1.0 - smoothstep(0.0, 0.50, d0), 1.4) * uCaustic;
     col += caustV * vec3(0.92, 0.99, 1.0) * 1.0;
 
 
