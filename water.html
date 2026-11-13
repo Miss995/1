@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v143 · 16:58</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v144 · 18:45</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -125,6 +125,11 @@
   <div class="btns">
     <button id="b_pause">继续</button>
     <button id="b_glow">底光 关</button>
+    <button id="b_copy">复制参数</button>
+    <button id="b_reset">清空保存</button>
+  </div>
+  <textarea id="dump" style="display:none;width:100%;height:90px;font-size:11px;box-sizing:border-box;"></textarea>
+  <div style="display:none">
   </div>
 </div>
 
@@ -902,10 +907,15 @@ void main() {
     cvs.addEventListener(t, e => { down = false; e.preventDefault && e.preventDefault(); })
   );
 
+  // ---- 参数自动存本地：刷新/误关都不会丢 ----
+  function saveStore(){ try{ localStorage.setItem('waterParams', JSON.stringify(S)); }catch(e){} }
+  function loadStore(){ try{ return JSON.parse(localStorage.getItem('waterParams')||'null'); }catch(e){ return null; } }
+  const SAVED = loadStore() || {};
   function bind(id, key) {
     const el = document.getElementById('s_' + id);
     const out = document.getElementById('v_' + id);
-    const upd = () => { S[key] = +el.value; out.textContent = el.value; needDraw = true; };
+    if (SAVED[key] !== undefined) el.value = SAVED[key];
+    const upd = () => { S[key] = +el.value; out.textContent = el.value; needDraw = true; saveStore(); };
     el.addEventListener('input', upd);
     upd();
   }
@@ -913,6 +923,18 @@ void main() {
   bind('refr','refr');   bind('norm','norm');   bind('shine','shine');
   bind('spec','spec');   bind('trans','trans'); bind('caus','caus');
   bind('surf','surf'); bind('wave','wave'); bind('slice','slice'); bind('gerstner','gerstner'); bind('w1','w1'); bind('w2','w2'); bind('w3','w3'); bind('w4','w4'); bind('w5','w5'); bind('w6','w6'); bind('a1','a1'); bind('l1','l1'); bind('a2','a2'); bind('l2','l2'); bind('a3','a3'); bind('l3','l3'); bind('a4','a4'); bind('l4','l4'); bind('a5','a5'); bind('l5','l5'); bind('a6','a6'); bind('l6','l6'); bind('bright','bright');
+  document.getElementById('b_copy').addEventListener('click', () => {
+    const txt = JSON.stringify(S);
+    const ta = document.getElementById('dump');
+    ta.style.display = 'block'; ta.value = txt; ta.select();
+    try { document.execCommand('copy'); } catch(e){}
+    try { navigator.clipboard.writeText(txt); } catch(e){}
+    ta.scrollIntoView({block:'center'});
+  });
+  document.getElementById('b_reset').addEventListener('click', () => {
+    try { localStorage.removeItem('waterParams'); } catch(e){}
+    location.reload();
+  });
   document.querySelectorAll('[data-dbg]').forEach(btn => {
     btn.addEventListener('click', () => {
       const on = btn.classList.toggle('on');
