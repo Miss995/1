@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v141 · 16:36</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v142 · 16:36</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -391,7 +391,7 @@ float waterHeight(vec2 p, float t) {
     h += waveSin(dot(pw, vec2( 0.82, -0.57)) * 13.0 + t * 1.15) * 0.22 * uW2;
     h += waveSin(dot(pw, vec2( 0.34,  0.94)) * 19.5 + t * 1.45) * 0.14 * uW3;
     h += waveSin(dot(pw, vec2( 0.71, -0.70)) * 27.0 + t * 1.75) * 0.09 * uW4;
-    h += waveSin(dot(pw, vec2(-0.60,  0.80)) * 38.0 + t * 2.05) * 0.0 * uW5;
+    h += waveSin(dot(pw, vec2(-0.60,  0.80)) * 38.0 + t * 2.05) * 0.06 * uW5;
     h += waveSin(dot(pw, vec2( 0.93,  0.37)) * 52.0 + t * 2.35) * 0.04 * uW6;
     return clamp(h * 0.5 + 0.5, 0.0, 1.0);
 }
