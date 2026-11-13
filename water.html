@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v107 · 19:19</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v108 · 05:51</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -608,18 +608,26 @@ void main() {
     // 看原始波灰度图就明白：一块一块之间的黑缝，是相邻两个面折进去的地方，
     // 光在那里被折过来 —— 那才是焦散该出现的位置。
     // 之前挑 h1 高的地方，等于把光斑画在每一块的中间，方向整个反了。
-    // ★ 光斑 = 【明暗交界线】，而且要"大胆连在一起"。
+    // ★ 光斑 = 【曲率】，不是方向。
     //
-    // 上一版用 slopeDir（六个波的合成方向）过零 —— 太碎了：高频波让方向翻来翻去，
-    // 交界线被切成一截一截，再加 flatGuard 掐掉坡度低的地方，就成了"一小点一小点"。
+    // 前两版都从"梯度方向"找交界线（slopeDir / dirLow 过零），结果：
+    //   高频波 → 碎成一截一截（一小点一小点）
+    //   低频波 → 在涡旋处绕成一圈，长成螺旋（她说的"抽风"就是这个）
+    // 根因：梯度方向是【方向量】，在二维场里绕一圈是正常的，它天生会卷。
     //
-    // 现在换成【低频场】算交界：只用慢的那几个波决定"坡朝哪边"，
-    // 交界线走向才是大块的、能连起来的一条长线。
-    // 这里不看 x 分量只看 y 分量：坡水平（y 分量≈0）就是明暗翻转，判据更干净。
-    vec2  gLow   = waterGrad(p * 1.1, t);
-    float magLow = length(gLow);
-    float dirLow = magLow > 1e-4 ? (gLow.y / magLow) : 0.0;
-    float caustV = (1.0 - smoothstep(0.0, 0.08, abs(dirLow))) * uCaustic;
+    // 物理真相：池底光斑是水面把阳光【聚焦】到池底 —— 聚焦发生在水面凹进去的地方，
+    // 也就是高度场的二阶导（拉普拉斯）最负处。这个量天然是点状/网格状的，不会卷。
+    //
+    //   lap = (hR + hL + hU + hD - 4h) / dx²   ← 凹处为负，凸处为正
+    //   取负值 → 凹处亮
+    float hC = waterHeight(p, t);
+    float hR = waterHeight(p + vec2(e, 0.0), t);
+    float hL = waterHeight(p - vec2(e, 0.0), t);
+    float hU = waterHeight(p + vec2(0.0, e), t);
+    float hD = waterHeight(p - vec2(0.0, e), t);
+    float lap = (hR + hL + hU + hD - 4.0 * hC) / (e * e);
+    // 门槛按数量级来（二阶导数值比高度大几个量级），负得越多越亮
+    float caustV = smoothstep(0.0, 60.0, -lap) * uCaustic;
     col += caustV * vec3(0.92, 0.99, 1.0) * 0.90;   // 提亮一点，往"反光"靠而不是"发白"
     col *= (1.0 + shadeRip);
     col = mix(col, shadeTint, 0.16 * border);   // 边界密了，混色要收（原来 0.30）   // border=0 在线上不受影响
