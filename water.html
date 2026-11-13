@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v121 · 11:21</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v122 · 11:58</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -496,6 +496,17 @@ void main() {
     float d0 = abs(det);
     float caustV = pow(1.0 - smoothstep(0.0, 0.13, d0), 1.4) * uCaustic;
     col += caustV * vec3(0.92, 0.99, 1.0) * 1.0;
+    // === DEBUG 量级探测（测完删）===
+    // 读的是 curX+curY 的量级：蓝=极小 青→绿→黄 越大 红=极大
+    float magD = abs(curX) + abs(curY);
+    vec3 dbgC = vec3(0.05, 0.05, 0.45);                       // < 0.0005  深蓝
+    if (magD >= 0.0005) dbgC = vec3(0.0, 0.75, 0.85);         // 0.0005~0.0015 青
+    if (magD >= 0.0015) dbgC = vec3(0.0, 0.75, 0.0);          // 0.0015~0.005  绿
+    if (magD >= 0.005)  dbgC = vec3(1.0, 0.9, 0.0);           // 0.005~0.015   黄
+    if (magD >= 0.015)  dbgC = vec3(0.9, 0.1, 0.1);           // > 0.015       红
+    col = dbgC;
+    // === DEBUG END ===
+
 
     // 水里的光斑：光穿过波峰被聚焦打在水底 —— 波峰处聚成细亮纹，平坦处几乎没有。
     // 频率要高（一屏几十条），强度要克制，而且必须跟波挂钩。
