@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v132 · 12:46</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v133 · 12:54</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -520,15 +520,16 @@ void main() {
     //    h 在那里变化最陡。光正是被这些折痕折过来、会聚成亮线的。
     //    所以判据不是"h 等于某个值"（那画出来是等值线，六波叠加会退化成平行条纹），
     //    而是"|∇h| 最大"。形状天然贴合水面，亮线多少也由水自己决定，不用另造一张网。
-    // ★ 就是在原始波（h 场）上做边缘检测：算坡度，只认最强的那一档。
-    //    v130 是同一个思路，但阈值 0.055 太低 —— 坡道上也算"边"，整片白成大理石。
-    //    这次换算成真实坡度（除以 2e），再砍掉弱的、锐化剩下的。
-    float eG = 0.02;
-    float gx = waterHeight(p + vec2(eG, 0.0), t) - waterHeight(p - vec2(eG, 0.0), t);
-    float gy = waterHeight(p + vec2(0.0, eG), t) - waterHeight(p - vec2(0.0, eG), t);
-    float e = length(vec2(gx, gy)) / (2.0 * eG);          // 真实坡度 dh/dp
-    float caustV = pow(clamp((e - 2.0) / 4.0, 0.0, 1.0), 2.5) * uCaustic;
-    col += caustV * vec3(0.92, 0.99, 1.0) * 0.9;
+    // ★★ 直接照原始波来：原始波里【最暗的那几条线】就是面与面折在一起的地方。
+    //    ⚠️ 两个之前的错：
+    //    ① 尺度错：原始波是 waterHeight(p*2.5)，焦散却用 waterHeight(p) —— 差 2.5 倍，
+    //       两张图的格子数差 2.5 倍，怎么比都对不上。现在统一到 p*2.5。
+    //    ② 判据错：做边缘检测（找对比大的地方）找的是"谷的两侧"，是两条；
+    //       而要的那条线是"谷底"那一条。所以不该求导，该直接取最暗的。
+    float hh   = waterHeight(p * 2.5, t);
+    float gray = clamp(hh * 0.55 + 0.5, 0.0, 1.0);        // 跟原始波同一张灰度图
+    float caustV = pow(1.0 - gray, 5.0) * uCaustic;        // 取反 + 高次方 = 只剩最暗那几条
+    col += caustV * vec3(0.92, 0.99, 1.0) * 1.2;
 
 
     // 水里的光斑：光穿过波峰被聚焦打在水底 —— 波峰处聚成细亮纹，平坦处几乎没有。
