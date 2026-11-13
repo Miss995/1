@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v138 · 13:32</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v139 · 14:23</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -254,11 +254,10 @@ vec3 under(vec2 uv) {
 // 波峰要尖，不能是圆弧。表面张力会把峰顶拉出棱 —— 有了棱，坡度才突变，
 // 明暗才有硬边；sin 太光滑，切几档都还是渐变。
 float waveSin(float x) {
-    // ★ 接回"峰尖谷宽"的纯垂直整形（sharpSin 那套），不再靠 Gerstner 挤水平位置。
-    //   当初退回纯 sin 是因为出现折纸感 —— 那是 0.72/1.45 太猛（零点处导数无穷大）。
-    //   这次放温和：0.86 / 1.22，峰有点尖、谷更宽，但不至于每个交叉点都成折痕。
-    float s = sin(x);
-    return s >= 0.0 ? pow(max(s, 1e-4), 0.86) : -pow(max(-s, 1e-4), 1.22);
+    // 退回光滑 sin（2026-11-13 试过接回 sharpSin 的峰尖整形，宝看效果不行，退回）。
+    // abs(sin) 虽然导数有限，但零点处导数不连续 = 数学尖点，
+    // 四波叠加后每个交叉点都是折痕，整片会变成折纸/钻石切面。
+    return sin(x);
 }
 
 // 网格专用的高度场：只要三个方向接近的波。
