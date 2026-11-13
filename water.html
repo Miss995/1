@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v117 · 10:58</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v118 · 11:04</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -472,18 +472,23 @@ void main() {
     // ★★ 光斑 = Worley 细胞边界（拿真实照片对过：水底光斑就是一堆闭合多边形拼的网）
     //    cellEdge 返回"到最近点与第二近点的距离差"，越靠边界越小。
     //    坐标被水面的波推着走 → 网跟着水扭，不是一张钉死的贴图。
-    // ★★★ 光斑 = 高度场【自己的沟】。不另外画图案，让水的形状自己给出网。
-    //     为什么不画 Worley：那张网再漂亮也跟这片水没关系，所以永远像贴图（v113-v115 就是）。
-    //     为什么不切曲率：lap 会把高频放大，等值线碎成沙（v112）。
-    //     h 本身是平滑的 —— 切它的等值线，低谷那几圈天然顺着沟走，形状跟水同源、动起来就跟着动。
-    // ⚠️ 用 p（未折射），不能用 cp/uvw：那样等于把高度场先用折射扭一遍再切等高线，
-    //    水扭一次、光斑再扭一次 = 扭两遍，线被扯得夸张（v116 就是）。
-    //    光斑跟水面明暗必须落在同一个坐标系里，沟和线才对得上。
-    float hc = waterHeight(p, t);
-    float caustBand = abs(fract(hc * 7.0) - 0.5) * 2.0;   // 0 = 正好在一条等高线上
-    float causLine  = 1.0 - smoothstep(0.0, 0.16, caustBand);  // 线宽
-    float causAmp   = smoothstep(0.62, 0.30, hc);              // 只留低谷（沟），鼓包顶上不画
-    float caustV = causLine * causAmp * uCaustic;
+    // ★★★ 焦散的真身（物理）：光是【被压缩】才变亮的。
+    //     折射把水面每一点映到池底，映过去的时候有拉伸也有压缩 ——
+    //     压缩的地方光挤在一起 = 亮，拉伸的地方光散开 = 暗。
+    //     这个"压缩了多少"就是映射的行列式：det = (1+k·h_xx)(1+k·h_yy)（忽略交叉项，省一半采样）。
+    //     det 接近 0 → 压到极限 → 焦散线。它跟水面凹凸是同一样东西长出来的，所以必然对得上。
+    //     ⚠️ 之前用 h 的等值线是错的：那画的是"绕鼓包的闭合圈"，不是光压出来的网。
+    float e2 = 0.010;
+    float h0  = waterHeight(p, t);
+    float hXp = waterHeight(p + vec2(e2, 0.0), t);
+    float hXm = waterHeight(p - vec2(e2, 0.0), t);
+    float hYp = waterHeight(p + vec2(0.0, e2), t);
+    float hYm = waterHeight(p - vec2(0.0, e2), t);
+    float curX = (hXp + hXm - 2.0 * h0);          // 简化：省掉 /e²，用 k 吸收量级
+    float curY = (hYp + hYm - 2.0 * h0);
+    float kRef = 14.0;                             // 折射强度：越大网越密
+    float det = (1.0 + kRef * curX) * (1.0 + kRef * curY);
+    float caustV = (1.0 - smoothstep(0.0, 0.55, abs(det))) * uCaustic;
     col += caustV * vec3(0.92, 0.99, 1.0) * 1.0;
 
     // 水里的光斑：光穿过波峰被聚焦打在水底 —— 波峰处聚成细亮纹，平坦处几乎没有。
