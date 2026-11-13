@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v142 · 16:36</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v143 · 16:58</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -100,6 +100,18 @@
   <div class="row"><label>波4 -44.6°</label><input id="s_w4" type="range" min="0" max="100" value="100"><span class="val" id="v_w4">100</span></div>
   <div class="row"><label>波5 126.9°</label><input id="s_w5" type="range" min="0" max="100" value="100"><span class="val" id="v_w5">100</span></div>
   <div class="row"><label>波6 21.7°</label><input id="s_w6" type="range" min="0" max="100" value="100"><span class="val" id="v_w6">100</span></div>
+  <div class="row"><label>波1 角</label><input id="s_a1" type="range" min="0" max="360" value="16"><span class="val" id="v_a1">16</span></div>
+  <div class="row"><label>波1 距</label><input id="s_l1" type="range" min="10" max="200" value="74"><span class="val" id="v_l1">74</span></div>
+  <div class="row"><label>波2 角</label><input id="s_a2" type="range" min="0" max="360" value="325"><span class="val" id="v_a2">325</span></div>
+  <div class="row"><label>波2 距</label><input id="s_l2" type="range" min="10" max="200" value="48"><span class="val" id="v_l2">48</span></div>
+  <div class="row"><label>波3 角</label><input id="s_a3" type="range" min="0" max="360" value="70"><span class="val" id="v_a3">70</span></div>
+  <div class="row"><label>波3 距</label><input id="s_l3" type="range" min="10" max="200" value="32"><span class="val" id="v_l3">32</span></div>
+  <div class="row"><label>波4 角</label><input id="s_a4" type="range" min="0" max="360" value="315"><span class="val" id="v_a4">315</span></div>
+  <div class="row"><label>波4 距</label><input id="s_l4" type="range" min="10" max="200" value="23"><span class="val" id="v_l4">23</span></div>
+  <div class="row"><label>波5 角</label><input id="s_a5" type="range" min="0" max="360" value="127"><span class="val" id="v_a5">127</span></div>
+  <div class="row"><label>波5 距</label><input id="s_l5" type="range" min="10" max="200" value="17"><span class="val" id="v_l5">17</span></div>
+  <div class="row"><label>波6 角</label><input id="s_a6" type="range" min="0" max="360" value="22"><span class="val" id="v_a6">22</span></div>
+  <div class="row"><label>波6 距</label><input id="s_l6" type="range" min="10" max="200" value="12"><span class="val" id="v_l6">12</span></div>
   <div class="row"><label>切面</label><input id="s_slice" type="range" min="30"  max="800" value="200"><span class="val" id="v_slice">200</span></div>
 
   <div class="btns">
@@ -151,6 +163,18 @@ uniform float uW3;
 uniform float uW4;
 uniform float uW5;
 uniform float uW6;
+uniform float uA1;
+uniform float uL1;
+uniform float uA2;
+uniform float uL2;
+uniform float uA3;
+uniform float uL3;
+uniform float uA4;
+uniform float uL4;
+uniform float uA5;
+uniform float uL5;
+uniform float uA6;
+uniform float uL6;
 uniform float uBaseGlow;
 
 uniform vec4 uRipples[14];
@@ -335,21 +359,33 @@ float voronoiF1(vec2 q) {
 }
 
 float waterHeightLow(vec2 p, float t) {
+    vec2 D1 = vec2(cos(radians(uA1)), sin(radians(uA1))); float K1 = 6.2831853 / uL1;
+    vec2 D2 = vec2(cos(radians(uA2)), sin(radians(uA2))); float K2 = 6.2831853 / uL2;
+    vec2 D3 = vec2(cos(radians(uA3)), sin(radians(uA3))); float K3 = 6.2831853 / uL3;
+    vec2 D4 = vec2(cos(radians(uA4)), sin(radians(uA4))); float K4 = 6.2831853 / uL4;
+    vec2 D5 = vec2(cos(radians(uA5)), sin(radians(uA5))); float K5 = 6.2831853 / uL5;
+    vec2 D6 = vec2(cos(radians(uA6)), sin(radians(uA6))); float K6 = 6.2831853 / uL6;
     vec2 disp = vec2(0.0);
-    disp += vec2( 0.96,  0.28) * (uGerstner * 0.35 * uW1 * cos(dot(p, vec2( 0.96,  0.28)) * 8.5 + t * 0.85));
-    disp += vec2( 0.82, -0.57) * (uGerstner * 0.22 * uW2 * cos(dot(p, vec2( 0.82, -0.57)) * 13.0 + t * 1.15));
-    disp += vec2( 0.34,  0.94) * (uGerstner * 0.14 * uW3 * cos(dot(p, vec2( 0.34,  0.94)) * 19.5 + t * 1.45));
-    disp += vec2( 0.71, -0.70) * (uGerstner * 0.09 * uW4 * cos(dot(p, vec2( 0.71, -0.70)) * 27.0 + t * 1.75));
-    disp += vec2(-0.60,  0.80) * (uGerstner * 0.06 * uW5 * cos(dot(p, vec2(-0.60,  0.80)) * 38.0 + t * 2.05));
-    disp += vec2( 0.93,  0.37) * (uGerstner * 0.04 * uW6 * cos(dot(p, vec2( 0.93,  0.37)) * 52.0 + t * 2.35));
+    disp += D1 * (uGerstner * 0.35 * uW1 * cos(dot(p, D1) * K1 + t * 0.85));
+    disp += D2 * (uGerstner * 0.22 * uW2 * cos(dot(p, D2) * K2 + t * 1.15));
+    disp += D3 * (uGerstner * 0.14 * uW3 * cos(dot(p, D3) * K3 + t * 1.45));
+    disp += D4 * (uGerstner * 0.09 * uW4 * cos(dot(p, D4) * K4 + t * 1.75));
+    disp += D5 * (uGerstner * 0.06 * uW5 * cos(dot(p, D5) * K5 + t * 2.05));
+    disp += D6 * (uGerstner * 0.04 * uW6 * cos(dot(p, D6) * K6 + t * 2.35));
     vec2 pw = p + disp;
     float h = 0.0;
-    h += waveSin(dot(pw, vec2( 0.96,  0.28)) * 8.5 + t * 0.85) * 0.35 * uW1;
-    h += waveSin(dot(pw, vec2( 0.82, -0.57)) * 13.0 + t * 1.15) * 0.22 * uW2;
+    h += waveSin(dot(pw, D1) * K1 + t * 0.85) * 0.35 * uW1;
+    h += waveSin(dot(pw, D2) * K2 + t * 1.15) * 0.22 * uW2;
     return h;
 }
 
 float waterHeight(vec2 p, float t) {
+    vec2 D1 = vec2(cos(radians(uA1)), sin(radians(uA1))); float K1 = 6.2831853 / uL1;
+    vec2 D2 = vec2(cos(radians(uA2)), sin(radians(uA2))); float K2 = 6.2831853 / uL2;
+    vec2 D3 = vec2(cos(radians(uA3)), sin(radians(uA3))); float K3 = 6.2831853 / uL3;
+    vec2 D4 = vec2(cos(radians(uA4)), sin(radians(uA4))); float K4 = 6.2831853 / uL4;
+    vec2 D5 = vec2(cos(radians(uA5)), sin(radians(uA5))); float K5 = 6.2831853 / uL5;
+    vec2 D6 = vec2(cos(radians(uA6)), sin(radians(uA6))); float K6 = 6.2831853 / uL6;
     // 不用 fbm。fbm 的峰是孤立鼓包 —— 在鼓包上切等值线就是一个个闭合的环，
     // 明暗和高光也各自围着包心转，三样东西看起来各跑各的。
     // 真实水面是几条方向不同的波叠在一起：起伏是连续的条纹网络，
@@ -377,46 +413,52 @@ float waterHeight(vec2 p, float t) {
     //     最紧的是 k=52 那个：位移 0.04u，半波长 π/52=0.060，够。
     //  方向各自错开 10~30°，交叉点才不会整齐排队。
     vec2 disp = vec2(0.0);
-    disp += vec2( 0.96,  0.28) * (uGerstner * 0.35 * uW1 * cos(dot(p, vec2( 0.96,  0.28)) * 8.5 + t * 0.85));
-    disp += vec2( 0.82, -0.57) * (uGerstner * 0.22 * uW2 * cos(dot(p, vec2( 0.82, -0.57)) * 13.0 + t * 1.15));
-    disp += vec2( 0.34,  0.94) * (uGerstner * 0.14 * uW3 * cos(dot(p, vec2( 0.34,  0.94)) * 19.5 + t * 1.45));
-    disp += vec2( 0.71, -0.70) * (uGerstner * 0.09 * uW4 * cos(dot(p, vec2( 0.71, -0.70)) * 27.0 + t * 1.75));
-    disp += vec2(-0.60,  0.80) * (uGerstner * 0.06 * uW5 * cos(dot(p, vec2(-0.60,  0.80)) * 38.0 + t * 2.05));
-    disp += vec2( 0.93,  0.37) * (uGerstner * 0.04 * uW6 * cos(dot(p, vec2( 0.93,  0.37)) * 52.0 + t * 2.35));
+    disp += D1 * (uGerstner * 0.35 * uW1 * cos(dot(p, D1) * K1 + t * 0.85));
+    disp += D2 * (uGerstner * 0.22 * uW2 * cos(dot(p, D2) * K2 + t * 1.15));
+    disp += D3 * (uGerstner * 0.14 * uW3 * cos(dot(p, D3) * K3 + t * 1.45));
+    disp += D4 * (uGerstner * 0.09 * uW4 * cos(dot(p, D4) * K4 + t * 1.75));
+    disp += D5 * (uGerstner * 0.06 * uW5 * cos(dot(p, D5) * K5 + t * 2.05));
+    disp += D6 * (uGerstner * 0.04 * uW6 * cos(dot(p, D6) * K6 + t * 2.35));
 
     vec2 pw = p + disp;
 
     float h = 0.0;
-    h += waveSin(dot(pw, vec2( 0.96,  0.28)) * 8.5 + t * 0.85) * 0.35 * uW1;
-    h += waveSin(dot(pw, vec2( 0.82, -0.57)) * 13.0 + t * 1.15) * 0.22 * uW2;
-    h += waveSin(dot(pw, vec2( 0.34,  0.94)) * 19.5 + t * 1.45) * 0.14 * uW3;
-    h += waveSin(dot(pw, vec2( 0.71, -0.70)) * 27.0 + t * 1.75) * 0.09 * uW4;
-    h += waveSin(dot(pw, vec2(-0.60,  0.80)) * 38.0 + t * 2.05) * 0.06 * uW5;
-    h += waveSin(dot(pw, vec2( 0.93,  0.37)) * 52.0 + t * 2.35) * 0.04 * uW6;
+    h += waveSin(dot(pw, D1) * K1 + t * 0.85) * 0.35 * uW1;
+    h += waveSin(dot(pw, D2) * K2 + t * 1.15) * 0.22 * uW2;
+    h += waveSin(dot(pw, D3) * K3 + t * 1.45) * 0.14 * uW3;
+    h += waveSin(dot(pw, D4) * K4 + t * 1.75) * 0.09 * uW4;
+    h += waveSin(dot(pw, D5) * K5 + t * 2.05) * 0.06 * uW5;
+    h += waveSin(dot(pw, D6) * K6 + t * 2.35) * 0.04 * uW6;
     return clamp(h * 0.5 + 0.5, 0.0, 1.0);
 }
 
 // waterHeight 的解析梯度：h = Σ A·sin(k·D·p + ωt)，∇h = Σ A·k·D·cos(...)。
 // 比数值差分省三次 waterHeight 采样，而且跟高度场严格是同一套波。
 vec2 waterGrad(vec2 p, float t) {
+    vec2 D1 = vec2(cos(radians(uA1)), sin(radians(uA1))); float K1 = 6.2831853 / uL1;
+    vec2 D2 = vec2(cos(radians(uA2)), sin(radians(uA2))); float K2 = 6.2831853 / uL2;
+    vec2 D3 = vec2(cos(radians(uA3)), sin(radians(uA3))); float K3 = 6.2831853 / uL3;
+    vec2 D4 = vec2(cos(radians(uA4)), sin(radians(uA4))); float K4 = 6.2831853 / uL4;
+    vec2 D5 = vec2(cos(radians(uA5)), sin(radians(uA5))); float K5 = 6.2831853 / uL5;
+    vec2 D6 = vec2(cos(radians(uA6)), sin(radians(uA6))); float K6 = 6.2831853 / uL6;
     vec2 g = vec2(0.0);
     float ph;
     // 跟 waterHeight 严格一致：先把点按六波位移挪过去，再在那里取六项梯度。
     vec2 disp2 = vec2(0.0);
-    disp2 += vec2( 0.96,  0.28) * (uGerstner * 0.35 * uW1 * cos(dot(p, vec2( 0.96,  0.28)) * 8.5 + t * 0.85));
-    disp2 += vec2( 0.82, -0.57) * (uGerstner * 0.22 * uW2 * cos(dot(p, vec2( 0.82, -0.57)) * 13.0 + t * 1.15));
-    disp2 += vec2( 0.34,  0.94) * (uGerstner * 0.14 * uW3 * cos(dot(p, vec2( 0.34,  0.94)) * 19.5 + t * 1.45));
-    disp2 += vec2( 0.71, -0.70) * (uGerstner * 0.09 * uW4 * cos(dot(p, vec2( 0.71, -0.70)) * 27.0 + t * 1.75));
-    disp2 += vec2(-0.60,  0.80) * (uGerstner * 0.06 * uW5 * cos(dot(p, vec2(-0.60,  0.80)) * 38.0 + t * 2.05));
-    disp2 += vec2( 0.93,  0.37) * (uGerstner * 0.04 * uW6 * cos(dot(p, vec2( 0.93,  0.37)) * 52.0 + t * 2.35));
+    disp2 += D1 * (uGerstner * 0.35 * uW1 * cos(dot(p, D1) * K1 + t * 0.85));
+    disp2 += D2 * (uGerstner * 0.22 * uW2 * cos(dot(p, D2) * K2 + t * 1.15));
+    disp2 += D3 * (uGerstner * 0.14 * uW3 * cos(dot(p, D3) * K3 + t * 1.45));
+    disp2 += D4 * (uGerstner * 0.09 * uW4 * cos(dot(p, D4) * K4 + t * 1.75));
+    disp2 += D5 * (uGerstner * 0.06 * uW5 * cos(dot(p, D5) * K5 + t * 2.05));
+    disp2 += D6 * (uGerstner * 0.04 * uW6 * cos(dot(p, D6) * K6 + t * 2.35));
     vec2 pw2 = p + disp2;
 
-    g += vec2( 0.96,  0.28) * (8.5 * cos(dot(pw2, vec2( 0.96,  0.28)) * 8.5 + t * 0.85) * 0.35 * uW1);
-    g += vec2( 0.82, -0.57) * (13.0 * cos(dot(pw2, vec2( 0.82, -0.57)) * 13.0 + t * 1.15) * 0.22 * uW2);
-    g += vec2( 0.34,  0.94) * (19.5 * cos(dot(pw2, vec2( 0.34,  0.94)) * 19.5 + t * 1.45) * 0.14 * uW3);
-    g += vec2( 0.71, -0.70) * (27.0 * cos(dot(pw2, vec2( 0.71, -0.70)) * 27.0 + t * 1.75) * 0.09 * uW4);
-    g += vec2(-0.60,  0.80) * (38.0 * cos(dot(pw2, vec2(-0.60,  0.80)) * 38.0 + t * 2.05) * 0.06 * uW5);
-    g += vec2( 0.93,  0.37) * (52.0 * cos(dot(pw2, vec2( 0.93,  0.37)) * 52.0 + t * 2.35) * 0.04 * uW6);
+    g += D1 * (K1 * cos(dot(pw2, D1) * K1 + t * 0.85) * 0.35 * uW1);
+    g += D2 * (K2 * cos(dot(pw2, D2) * K2 + t * 1.15) * 0.22 * uW2);
+    g += D3 * (K3 * cos(dot(pw2, D3) * K3 + t * 1.45) * 0.14 * uW3);
+    g += D4 * (K4 * cos(dot(pw2, D4) * K4 + t * 1.75) * 0.09 * uW4);
+    g += D5 * (K5 * cos(dot(pw2, D5) * K5 + t * 2.05) * 0.06 * uW5);
+    g += D6 * (K6 * cos(dot(pw2, D6) * K6 + t * 2.35) * 0.04 * uW6);
     return g * 0.5;   // 跟 waterHeight 里那个 *0.5 对齐
 }
 
@@ -772,7 +814,7 @@ void main() {
 
   const U = {};
   ['uRes','uTime','uPitch','uFront','uDecay','uRefr','uNorm','uShine',
-   'uSpecPow','uTrans','uCaustic','uTint','uBg','uWave','uBaseGlow','uSlice','uDbgGrid','uDbgWave','uGerstner','uBright','uW1','uW2','uW3','uW4','uW5','uW6']
+   'uSpecPow','uTrans','uCaustic','uTint','uBg','uWave','uBaseGlow','uSlice','uDbgGrid','uDbgWave','uGerstner','uBright','uW1','uW2','uW3','uW4','uW5','uW6','uA1','uA2','uA3','uA4','uA5','uA6','uL1','uL2','uL3','uL4','uL5','uL6']
     .forEach(n => U[n] = gl.getUniformLocation(prog, n));
   U.uRipples = gl.getUniformLocation(prog, 'uRipples');
   U.uPhaseSpd = gl.getUniformLocation(prog, 'uPhaseSpd');
@@ -780,7 +822,7 @@ void main() {
   U.uSurfShade = gl.getUniformLocation(prog, 'uSurfShade');
 
   const S = { pitch:180, spd:200, front:28, decay:8, refr:40, norm:100,
-              shine:80, spec:90, trans:55, caus:60, surf:100, bg:0, wave:0, glow:0, slice:200, dbgGrid:0, dbgWave:0, gerstner:55, bright:60, w1:100, w2:100, w3:100, w4:100, w5:100, w6:100 };
+              shine:80, spec:90, trans:55, caus:60, surf:100, bg:0, wave:0, glow:0, slice:200, dbgGrid:0, dbgWave:0, gerstner:55, bright:60, w1:100, w2:100, w3:100, w4:100, w5:100, w6:100, a1:16, l1:74, a2:325, l2:48, a3:70, l3:32, a4:315, l4:23, a5:127, l5:17, a6:22, l6:12 };
   let paused = true, tAcc = 2.0, last = performance.now();
   let needDraw = true;
 
@@ -870,7 +912,7 @@ void main() {
   bind('pitch','pitch'); bind('spd','spd'); bind('front','front'); bind('decay','decay');
   bind('refr','refr');   bind('norm','norm');   bind('shine','shine');
   bind('spec','spec');   bind('trans','trans'); bind('caus','caus');
-  bind('surf','surf'); bind('wave','wave'); bind('slice','slice'); bind('gerstner','gerstner'); bind('w1','w1'); bind('w2','w2'); bind('w3','w3'); bind('w4','w4'); bind('w5','w5'); bind('w6','w6'); bind('bright','bright');
+  bind('surf','surf'); bind('wave','wave'); bind('slice','slice'); bind('gerstner','gerstner'); bind('w1','w1'); bind('w2','w2'); bind('w3','w3'); bind('w4','w4'); bind('w5','w5'); bind('w6','w6'); bind('a1','a1'); bind('l1','l1'); bind('a2','a2'); bind('l2','l2'); bind('a3','a3'); bind('l3','l3'); bind('a4','a4'); bind('l4','l4'); bind('a5','a5'); bind('l5','l5'); bind('a6','a6'); bind('l6','l6'); bind('bright','bright');
   document.querySelectorAll('[data-dbg]').forEach(btn => {
     btn.addEventListener('click', () => {
       const on = btn.classList.toggle('on');
@@ -960,6 +1002,18 @@ void main() {
     gl.uniform1f(U.uW4, S.w4 / 100.0);
     gl.uniform1f(U.uW5, S.w5 / 100.0);
     gl.uniform1f(U.uW6, S.w6 / 100.0);
+    gl.uniform1f(U.uA1, S.a1);
+    gl.uniform1f(U.uL1, S.l1 / 100.0);
+    gl.uniform1f(U.uA2, S.a2);
+    gl.uniform1f(U.uL2, S.l2 / 100.0);
+    gl.uniform1f(U.uA3, S.a3);
+    gl.uniform1f(U.uL3, S.l3 / 100.0);
+    gl.uniform1f(U.uA4, S.a4);
+    gl.uniform1f(U.uL4, S.l4 / 100.0);
+    gl.uniform1f(U.uA5, S.a5);
+    gl.uniform1f(U.uL5, S.l5 / 100.0);
+    gl.uniform1f(U.uA6, S.a6);
+    gl.uniform1f(U.uL6, S.l6 / 100.0);
     gl.uniform1f(U.uBaseGlow, S.glow);
     gl.uniform4fv(U.uRipples, ripples);
     gl.uniform1fv(U.uRipR, ripR);
