@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v114 · 10:37</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v115 · 10:44</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -479,11 +479,12 @@ void main() {
         vnoise(cp * 3.0 + vec2(0.0, t * 0.075) + 11.7)
     ) - 0.5;
     vec2 cwarp = cp + flow * 0.05;
-    float cellFreq = 26.0;                                // 一屏大约十几格
+    float cellFreq = 17.0;                                // 格子放大：26 太密，像冰裂
     float ce = cellEdge(cwarp * cellFreq);
-    float causEdge = 1.0 - smoothstep(0.0, 0.055, ce);    // 线宽：越窄越像细亮线
+    // 线宽加一倍：0.055 太细，加上像素采样就走样成虚线（三叉点处 ce 会跳变，细线一断就成点）
+    float causEdge = 1.0 - smoothstep(0.0, 0.11, ce);
     float caustV = causEdge * uCaustic;
-    col += caustV * vec3(0.92, 0.99, 1.0) * 0.85;
+    col += caustV * vec3(0.92, 0.99, 1.0) * 1.0;
 
     // 水里的光斑：光穿过波峰被聚焦打在水底 —— 波峰处聚成细亮纹，平坦处几乎没有。
     // 频率要高（一屏几十条），强度要克制，而且必须跟波挂钩。
