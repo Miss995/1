@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v136 · 13:04</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v137 · 13:08</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -536,7 +536,7 @@ void main() {
     float hAvg = (waterHeight(ps + vec2(eG, 0.0), t) + waterHeight(ps - vec2(eG, 0.0), t)
                 + waterHeight(ps + vec2(0.0, eG), t) + waterHeight(ps - vec2(0.0, eG), t)) * 0.25;
     float dip = hAvg - hc;                     // >0 = 这儿比四周低 = 原始波上那条暗缝
-    float caustV = pow(clamp(dip / 0.035, 0.0, 1.0), 2.0) * uCaustic;   // 阈值抬高：只留最深的谷
+    float caustV = pow(clamp(dip / 0.065, 0.0, 1.0), 2.5) * uCaustic;   // 只留最深的谷（真实焦散是稀疏的）
     col += caustV * vec3(0.92, 0.99, 1.0) * 1.2;
 
 
