@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v111 · 10:15</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v112 · 10:19</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -479,8 +479,15 @@ void main() {
     // 门槛按数量级来（二阶导数值比高度大几个量级），负得越多越亮
     // 除完 cEps² 之后 lap 量级在 0.01~0.5，阈值按这个来（之前写 60 是猫没算量级）
     // 0.02 太低 —— 一大片都算凹，把整片水盖成灰膜。抬到 0.12：只挑真正凹得深的地方。
-    float caustV = smoothstep(0.12, 0.34, -lap) * uCaustic;
-    col += caustV * vec3(0.92, 0.99, 1.0) * 0.55;   // 0.90 太冲，压回 0.55
+    // ★ 改判据：不是"凹就亮"，是"凹到某个特定深度"才亮 —— 取等值线。
+    //   旧的 smoothstep(0.12,0.34,-lap) 把整片凹地都点亮，画出来是面（粗纹），不是线。
+    //   现在把 -lap 当地形高度，只画某几个高度的等值线 → 一条一条的细线。
+    float lapN = -lap;                                  // 凹处为正
+    float band = abs(fract(lapN * 18.0) - 0.5) * 2.0;   // 0 = 正好在某条等值线上
+    float causLine = 1.0 - smoothstep(0.0, 0.22, band); // 线宽（22% 周期）
+    float causAmp  = smoothstep(0.04, 0.16, lapN);      // 平坦区不画（没凹就不该有焦散）
+    float caustV = causLine * causAmp * uCaustic;
+    col += caustV * vec3(0.92, 0.99, 1.0) * 0.85;
 
     // 水里的光斑：光穿过波峰被聚焦打在水底 —— 波峰处聚成细亮纹，平坦处几乎没有。
     // 频率要高（一屏几十条），强度要克制，而且必须跟波挂钩。
