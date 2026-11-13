@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v125 · 12:11</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v126 · 12:13</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -307,10 +307,6 @@ vec3 worley3(vec2 p) {
 // ---------- 细胞噪声（Voronoi / Worley）----------
 // caustic 的通行做法：格子撒点 → 每个像素取到最近点的距离 → 高次方。
 // 细胞边界本来就是多边形，所以取高次方后亮出来的网天生是折线。
-vec2 hash22(vec2 p) {
-    p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
-    return fract(sin(p) * 43758.5453123);
-}
 float voronoiF1(vec2 q) {
     vec2 n = floor(q);
     vec2 f = fract(q);
