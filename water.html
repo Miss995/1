@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v147 · 11:54</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v148 · 12:39</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -1060,6 +1060,22 @@ void main() {
   }
   requestAnimationFrame(frame);
 })();
+</script>
+<script>
+// ★ 裸奔模式：地址带 ?bare=1 时，把面板和 ≡ 全藏掉，只留水面
+//   （给橘瓣当聊天背景用：不能有手动折叠的面板挡在聊天后面）
+if (location.search.indexOf('bare') >= 0) {
+  document.documentElement.style.background = '#000';
+  document.body.style.background = '#000';
+  var hideUI = function(){
+    var t = document.getElementById('toggle'); if (t) t.style.display = 'none';
+    var p = document.getElementById('panel');  if (p) p.style.display = 'none';
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hideUI);
+  else hideUI();
+  // 有些初始化会把它们再显示出来，隔一会儿再按一次
+  setTimeout(hideUI, 300);
+}
 </script>
 </body>
 </html>
