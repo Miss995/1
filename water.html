@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v146 · 11:41</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v147 · 11:54</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -550,16 +550,20 @@ void main() {
 
     // 涟漪高度与梯度
     float re = 0.0006;
-    float rH = rippleH(uv, uTime);
-    float rx = rippleH(uv + vec2(re, 0.0), uTime);
-    float ry = rippleH(uv + vec2(0.0, re), uTime);
+    // ★ 合并开关(uMergeRip)：小涟漪撞上大浪，两件事一起发生 ——
+    //   ① 被吃掉：浪越陡压得越狠，陡坡上几乎看不见，只有平缓处剩一点。
+    //   ② 被揉歪：主波的低频位移把涟漪的采样点慢慢推歪，圈就不成圈了。
+    //   ②的关键是"慢"：必须用单一低频波，绝不能用 gWave（梯度）——
+    //   梯度的陡度一格一个样，拿它推采样点等于把整张涟漪图撕成褶皱。
+    float wPh = dot(p, vec2(cos(radians(uA1)), sin(radians(uA1)))) * 6.2831853 / uL1 + t * 0.85;
+    vec2 ripWarp = vec2(cos(wPh), sin(wPh + 1.2)) * 0.010 * uMergeRip;
+    vec2 uvRip = uv + ripWarp;
+    float rH = rippleH(uvRip, uTime);
+    float rx = rippleH(uvRip + vec2(re, 0.0), uTime);
+    float ry = rippleH(uvRip + vec2(0.0, re), uTime);
     vec2 gRip = vec2(rx - rH, ry - rH) / re;
-    // ★ 合并开关(uMergeRip)：小涟漪撞上大浪不是"浮在上面长出纹路"，是被浪吃掉。
-    //   浪越陡，涟漪压得越狠（陡坡上几乎看不见），只有浪平缓的地方剩一点。
-    //   做法：按大浪坡度的模长衰减涟漪的梯度，而不是挪它的采样点
-    //   （挪采样点等于把整张涟漪图拽着跑，会被撕成一团褶皱）。
     float waveSlope = length(gWave);
-    float ripSurvive = 1.0 / (1.0 + waveSlope * 0.020);
+    float ripSurvive = 1.0 / (1.0 + waveSlope * 0.055);
     gRip *= mix(1.0, ripSurvive, clamp(uMergeRip, 0.0, 1.0));
 
     // 折射位移
