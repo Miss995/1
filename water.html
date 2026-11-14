@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v148 · 12:39</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v149 · 13:21</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -1068,8 +1068,12 @@ if (location.search.indexOf('bare') >= 0) {
   document.documentElement.style.background = '#000';
   document.body.style.background = '#000';
   var hideUI = function(){
-    var t = document.getElementById('toggle'); if (t) t.style.display = 'none';
-    var p = document.getElementById('panel');  if (p) p.style.display = 'none';
+    // 除了画布，body 下的一切全藏掉（版本角标、提示语、≡、面板……）
+    // 以前只点掉了 toggle 和 panel，结果版本角标 v148 和「点一下水面」漏在聊天背景上。
+    // 改成白名单式：不是 canvas 就藏 —— 以后再加什么元素都不会漏。
+    Array.prototype.forEach.call(document.body.children, function(el){
+      if (el.tagName !== 'CANVAS') el.style.display = 'none';
+    });
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hideUI);
   else hideUI();
