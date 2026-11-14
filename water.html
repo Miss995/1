@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v145 · 11:28</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v146 · 11:41</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -550,17 +550,17 @@ void main() {
 
     // 涟漪高度与梯度
     float re = 0.0006;
-    // ★ 合并开关(uMergeRip)：涟漪的采样点被大浪的位移推着走 ——
-    //   圈会被推歪、拉长，不再是"贴在水面上的一枚正圆"。
-    //   偏移量跟折射位移里的浪那部分用同一个系数，保证它跟着"看起来在动的水"走。
-    vec2 uvRip = uv + gWave * 0.0028 * uMergeRip;
-    float rH = rippleH(uvRip, uTime);
-    float rx = rippleH(uvRip + vec2(re, 0.0), uTime);
-    float ry = rippleH(uvRip + vec2(0.0, re), uTime);
+    float rH = rippleH(uv, uTime);
+    float rx = rippleH(uv + vec2(re, 0.0), uTime);
+    float ry = rippleH(uv + vec2(0.0, re), uTime);
     vec2 gRip = vec2(rx - rH, ry - rH) / re;
-    // ★ 合并开关：涟漪的强弱也跟着浪的坡面走（迎光处亮、背光处弱），
-    //   这样它不再是单独浮在浪上面的一层，而是被浪"带着呼吸"。
-    gRip *= 1.0 + clamp(-(gWave.x * L.x + gWave.y * L.y) * 0.28, -0.8, 0.8) * uMergeRip;
+    // ★ 合并开关(uMergeRip)：小涟漪撞上大浪不是"浮在上面长出纹路"，是被浪吃掉。
+    //   浪越陡，涟漪压得越狠（陡坡上几乎看不见），只有浪平缓的地方剩一点。
+    //   做法：按大浪坡度的模长衰减涟漪的梯度，而不是挪它的采样点
+    //   （挪采样点等于把整张涟漪图拽着跑，会被撕成一团褶皱）。
+    float waveSlope = length(gWave);
+    float ripSurvive = 1.0 / (1.0 + waveSlope * 0.020);
+    gRip *= mix(1.0, ripSurvive, clamp(uMergeRip, 0.0, 1.0));
 
     // 折射位移
     vec2 off = gRip * uRefr * 0.00030 + gWave * 0.0028;
