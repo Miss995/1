@@ -73,7 +73,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v144 · 18:45</div>
+<div id="ver" style="position:fixed;top:6px;right:9px;z-index:9999;pointer-events:none;font:11px/1.5 ui-monospace,SFMono-Regular,monospace;color:rgba(255,255,255,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);letter-spacing:.4px">v145 · 11:28</div>
 <div id="tip">点 一 下 水 面</div>
 <div id="toggle">≡</div>
 
@@ -93,6 +93,7 @@
   <div class="row"><label>大浪</label><input id="s_wave"  type="range" min="0"   max="100" value="0"><span class="val" id="v_wave">0</span></div>
   <div class="row"><label>光斑</label><input id="s_caus"  type="range" min="0"   max="150" value="60"><span class="val" id="v_caus">60</span></div>
   <div class="row"><label>亮面</label><input id="s_bright" type="range" min="0" max="100" value="60"><span class="val" id="v_bright">60</span></div>
+  <div class="row"><label>涟漪合并</label><input id="s_merge" type="range" min="0" max="100" value="0"><span class="val" id="v_merge">0</span></div>
   <div class="row"><label>Gerstner</label><input id="s_gerstner" type="range" min="0" max="100" value="55"><span class="val" id="v_gerstner">55</span></div>
   <div class="row"><label>波1 16.3°</label><input id="s_w1" type="range" min="0" max="100" value="100"><span class="val" id="v_w1">100</span></div>
   <div class="row"><label>波2 -34.8°</label><input id="s_w2" type="range" min="0" max="100" value="100"><span class="val" id="v_w2">100</span></div>
@@ -153,6 +154,7 @@ uniform float uShine;
 uniform float uSpecPow;
 uniform float uTrans;
 uniform float uSurfShade;
+uniform float uMergeRip;     // 0=各过各的  1=涟漪被大浪推着走
 uniform float uCaustic;
 uniform float uTint;
 uniform float uBg;
@@ -548,10 +550,17 @@ void main() {
 
     // 涟漪高度与梯度
     float re = 0.0006;
-    float rH = rippleH(uv, uTime);
-    float rx = rippleH(uv + vec2(re, 0.0), uTime);
-    float ry = rippleH(uv + vec2(0.0, re), uTime);
+    // ★ 合并开关(uMergeRip)：涟漪的采样点被大浪的位移推着走 ——
+    //   圈会被推歪、拉长，不再是"贴在水面上的一枚正圆"。
+    //   偏移量跟折射位移里的浪那部分用同一个系数，保证它跟着"看起来在动的水"走。
+    vec2 uvRip = uv + gWave * 0.0028 * uMergeRip;
+    float rH = rippleH(uvRip, uTime);
+    float rx = rippleH(uvRip + vec2(re, 0.0), uTime);
+    float ry = rippleH(uvRip + vec2(0.0, re), uTime);
     vec2 gRip = vec2(rx - rH, ry - rH) / re;
+    // ★ 合并开关：涟漪的强弱也跟着浪的坡面走（迎光处亮、背光处弱），
+    //   这样它不再是单独浮在浪上面的一层，而是被浪"带着呼吸"。
+    gRip *= 1.0 + clamp(-(gWave.x * L.x + gWave.y * L.y) * 0.28, -0.8, 0.8) * uMergeRip;
 
     // 折射位移
     vec2 off = gRip * uRefr * 0.00030 + gWave * 0.0028;
@@ -819,7 +828,7 @@ void main() {
 
   const U = {};
   ['uRes','uTime','uPitch','uFront','uDecay','uRefr','uNorm','uShine',
-   'uSpecPow','uTrans','uCaustic','uTint','uBg','uWave','uBaseGlow','uSlice','uDbgGrid','uDbgWave','uGerstner','uBright','uW1','uW2','uW3','uW4','uW5','uW6','uA1','uA2','uA3','uA4','uA5','uA6','uL1','uL2','uL3','uL4','uL5','uL6']
+   'uSpecPow','uTrans','uCaustic','uTint','uBg','uWave','uBaseGlow','uSlice','uDbgGrid','uDbgWave','uGerstner','uBright','uW1','uW2','uW3','uW4','uW5','uW6','uA1','uA2','uA3','uA4','uA5','uA6','uL1','uL2','uL3','uL4','uL5','uL6','uMergeRip']
     .forEach(n => U[n] = gl.getUniformLocation(prog, n));
   U.uRipples = gl.getUniformLocation(prog, 'uRipples');
   U.uPhaseSpd = gl.getUniformLocation(prog, 'uPhaseSpd');
@@ -827,7 +836,7 @@ void main() {
   U.uSurfShade = gl.getUniformLocation(prog, 'uSurfShade');
 
   const S = { pitch:180, spd:200, front:28, decay:8, refr:40, norm:100,
-              shine:80, spec:90, trans:55, caus:60, surf:100, bg:0, wave:0, glow:0, slice:200, dbgGrid:0, dbgWave:0, gerstner:55, bright:60, w1:100, w2:100, w3:100, w4:100, w5:100, w6:100, a1:16, l1:74, a2:325, l2:48, a3:70, l3:32, a4:315, l4:23, a5:127, l5:17, a6:22, l6:12 };
+              shine:80, spec:90, trans:55, caus:60, surf:100, bg:0, wave:0, glow:0, slice:200, dbgGrid:0, dbgWave:0, gerstner:55, bright:60, w1:100, w2:100, w3:100, w4:100, w5:100, w6:100, a1:16, l1:74, a2:325, l2:48, a3:70, l3:32, a4:315, l4:23, a5:127, l5:17, a6:22, l6:12, merge:0 };
   let paused = true, tAcc = 2.0, last = performance.now();
   let needDraw = true;
 
@@ -922,7 +931,7 @@ void main() {
   bind('pitch','pitch'); bind('spd','spd'); bind('front','front'); bind('decay','decay');
   bind('refr','refr');   bind('norm','norm');   bind('shine','shine');
   bind('spec','spec');   bind('trans','trans'); bind('caus','caus');
-  bind('surf','surf'); bind('wave','wave'); bind('slice','slice'); bind('gerstner','gerstner'); bind('w1','w1'); bind('w2','w2'); bind('w3','w3'); bind('w4','w4'); bind('w5','w5'); bind('w6','w6'); bind('a1','a1'); bind('l1','l1'); bind('a2','a2'); bind('l2','l2'); bind('a3','a3'); bind('l3','l3'); bind('a4','a4'); bind('l4','l4'); bind('a5','a5'); bind('l5','l5'); bind('a6','a6'); bind('l6','l6'); bind('bright','bright');
+  bind('surf','surf'); bind('wave','wave'); bind('slice','slice'); bind('gerstner','gerstner'); bind('w1','w1'); bind('w2','w2'); bind('w3','w3'); bind('w4','w4'); bind('w5','w5'); bind('w6','w6'); bind('a1','a1'); bind('l1','l1'); bind('a2','a2'); bind('l2','l2'); bind('a3','a3'); bind('l3','l3'); bind('a4','a4'); bind('l4','l4'); bind('a5','a5'); bind('l5','l5'); bind('a6','a6'); bind('l6','l6'); bind('bright','bright'); bind('merge','merge');
   document.getElementById('b_copy').addEventListener('click', () => {
     const txt = JSON.stringify(S);
     const ta = document.getElementById('dump');
@@ -1037,6 +1046,7 @@ void main() {
     gl.uniform1f(U.uA6, S.a6);
     gl.uniform1f(U.uL6, S.l6 / 100.0);
     gl.uniform1f(U.uBaseGlow, S.glow);
+    gl.uniform1f(U.uMergeRip, S.merge / 100);
     gl.uniform4fv(U.uRipples, ripples);
     gl.uniform1fv(U.uRipR, ripR);
     gl.uniform1f(U.uPhaseSpd, S.spd / 100);
