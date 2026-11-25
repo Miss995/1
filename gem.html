@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Soul Gem</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#08070d;overflow:hidden;
+  font-family:-apple-system,"PingFang SC","Hiragino Sans",sans-serif;color:#cfc9e8}
+#card{position:absolute;inset:12px;border-radius:6px;overflow:hidden;
+  background:
+    radial-gradient(120% 80% at 50% 0%,rgba(120,100,190,.20),transparent 60%),
+    linear-gradient(180deg,#141026,#0b0916 55%,#0a0813);
+  box-shadow:0 0 0 1px rgba(160,140,230,.18),0 0 60px rgba(90,70,160,.25) inset}
+#card::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:radial-gradient(rgba(255,255,255,.055) 1px,transparent 1px);
+  background-size:3px 3px;mix-blend-mode:screen;opacity:.9}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.ui{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;
+  padding:18px 20px 16px}
+.top{text-align:center;letter-spacing:.42em;font-size:9px;color:#8b83b8;
+  text-transform:uppercase}
+.jp{text-align:center;font-size:26px;letter-spacing:.28em;margin-top:10px;
+  color:#e9e3ff;font-weight:300;text-shadow:0 0 22px rgba(150,120,255,.45)}
+.fr{text-align:center;font-size:9.5px;letter-spacing:.16em;color:#7d75a8;
+  font-style:italic;margin-top:6px}
+.rule{height:1px;margin:14px 0;background:linear-gradient(90deg,transparent,
+  rgba(150,130,220,.45),transparent)}
+.stats{display:flex;justify-content:space-between;text-align:center;font-size:8.5px;
+  letter-spacing:.14em;color:#7c74a6}
+.stats b{display:block;font-size:15px;letter-spacing:.06em;color:#ddd5ff;
+  font-weight:400;margin-top:6px}
+.spacer{flex:1}
+.bottom{padding-top:10px}
+.row{display:flex;justify-content:space-between;font-size:8.5px;
+  letter-spacing:.14em;color:#7c74a6}
+.row b{color:#cfc6f5;font-weight:400;letter-spacing:.06em}
+input[type=range]{pointer-events:auto;width:100%;margin-top:12px;height:22px;
+  -webkit-appearance:none;background:transparent}
+input[type=range]::-webkit-slider-runnable-track{height:1px;
+  background:linear-gradient(90deg,rgba(190,170,255,.75),rgba(120,100,190,.18))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;
+  border-radius:50%;background:#e5dcff;margin-top:-5px;
+  box-shadow:0 0 12px rgba(170,140,255,.9)}
+.hint{text-align:center;font-size:8px;letter-spacing:.2em;color:#5d5680;
+  margin-top:8px}
+</style>
+</head>
+<body>
+<div id="card">
+  <canvas id="c"></canvas>
+  <div class="ui">
+    <div class="top">Rapport d'Analyse · N°07</div>
+    <div class="jp">ソウルジェム</div>
+    <div class="fr">Soul Gem — l'âme du salon</div>
+    <div class="rule"></div>
+    <div class="stats">
+      <div>透明度 · CLARTÉ<b id="cl">S11</b></div>
+      <div>濁り · TURBIDITÉ<b id="tb">62%</b></div>
+      <div>会話 · SALON<b id="sn">07</b></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="bottom">
+      <div class="row"><span>内包物 · ce qu'elle contient</span><b id="st">des mots</b></div>
+      <input id="r" type="range" min="0" max="100" value="62">
+      <div class="hint">拖动 · 浊度</div>
+    </div>
+  </div>
+</div>
+<script>
+const cv=document.getElementById('c'),gl=cv.getContext('webgl',{antialias:true,alpha:false});
+if(!gl){document.body.innerHTML='<p style="padding:20px">这个浏览器不支持 WebGL</p>'}
+const vs=`attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}`;
+const fs=`precision highp float;
+uniform vec2 uRes;uniform float uT;uniform float uTime;
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));
+return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}
+void main(){
+  vec2 p=(gl_FragCoord.xy-0.5*uRes)/min(uRes.x,uRes.y);
+  vec2 q=p/vec2(0.30,0.375);
+  float r=length(q);
+  float inside=1.-smoothstep(0.965,1.0,r);
+
+  // ---- 切面：极角分面 ----
+  float ang=atan(q.y,q.x);
+  float faces=16.0;
+  float uv=(ang+3.14159265)/6.2831853*faces;
+  float fi=floor(uv);
+  float fa=fract(uv);
+  float rnd=hash(vec2(fi,7.3));
+  float rnd2=hash(vec2(fi,13.9));
+
+  // 面亮度（假光照：左上光源）
+  float ld=sin(rnd*6.28318*0.7+2.2)*0.5+0.5;
+  float bright=0.30+0.70*ld;
+
+  // 棱线
+  float edge=smoothstep(0.,0.045,min(fa,1.-fa));
+  float lum=mix(0.28,1.0,bright);
+  lum+=(1.-edge)*0.55;
+
+  vec3 base=vec3(0.44,0.41,0.64);
+  vec3 col=base*lum;
+
+  // 第二层切面（错开角度，做宝石的"内部面"）
+  float uv2=uv*1.7+0.5;
+  float fi2=floor(uv2);
+  float fa2=fract(uv2);
+  float rnd3=hash(vec2(fi2,29.1));
+  float b2=0.5+0.5*sin(rnd3*6.28);
+  float e2=smoothstep(0.,0.08,min(fa2,1.-fa2));
+  col+=vec3(0.30,0.26,0.45)*(1.-e2)*b2*0.35;
+
+  // 内部色散
+  float disp=sin(r*14.0-uTime*0.6+fi*0.8)*0.5+0.5;
+  col+=vec3(0.18,0.10,0.30)*disp*0.5;
+  col+=vec3(0.10,0.22,0.26)*(1.0-disp)*0.35;
+
+  // 中心高光
+  vec2 sp=q-vec2(-0.12,0.22);
+  col+=vec3(1.0,0.97,1.0)*exp(-length(sp)*7.5)*0.95;
+  vec2 sp2=q-vec2(0.14,-0.26);
+  col+=vec3(0.75,0.82,1.0)*exp(-length(sp2)*13.0)*0.55;
+
+  // 浑浊
+  float n=noise(p*7.0+uTime*0.05)*0.6+noise(p*19.0)*0.4;
+  vec3 muddy=vec3(0.52,0.48,0.58);
+  col=mix(col,muddy,uT*n*0.85);
+  col=mix(col,vec3(0.30,0.28,0.36),uT*0.20);
+
+  // 边缘光
+  float rim=smoothstep(0.80,1.0,r)*(1.-smoothstep(1.0,1.03,r));
+  col+=vec3(0.55,0.66,1.0)*rim*1.05;
+
+  // 外圈辉光
+  float glow=exp(-max(0.,r-1.0)*3.2)*0.20;
+  col+=vec3(0.34,0.30,0.58)*glow;
+
+  vec3 bg=vec3(0.045,0.038,0.075);
+  col=mix(bg,col,inside);
+
+  // 网点印刷质感
+  vec2 g=mod(gl_FragCoord.xy,3.0);
+  float dt=step(1.0,g.x)*step(1.0,g.y);
+  col*=0.94+0.06*dt;
+
+  // 轻微扫描线
+  col*=0.97+0.03*sin(gl_FragCoord.y*1.6);
+
+  gl_FragColor=vec4(col,1.0);
+}`;
+function sh(t,s){const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);
+ if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))console.error(gl.getShaderInfoLog(o));return o;}
+const pr=gl.createProgram();
+gl.attachShader(pr,sh(gl.VERTEX_SHADER,vs));
+gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,fs));
+gl.linkProgram(pr);gl.useProgram(pr);
+const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+const loc=gl.getAttribLocation(pr,'p');gl.enableVertexAttribArray(loc);
+gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+const uRes=gl.getUniformLocation(pr,'uRes'),uT=gl.getUniformLocation(pr,'uT'),
+      uTime=gl.getUniformLocation(pr,'uTime');
+let turb=0.62;
+const r=document.getElementById('r'),tb=document.getElementById('tb'),cl=document.getElementById('cl');
+r.addEventListener('input',()=>{turb=r.value/100;tb.textContent=r.value+'%';
+  cl.textContent=turb<0.25?'S3':turb<0.5?'S7':turb<0.75?'S11':turb<0.9?'S15':'S19';});
+function resize(){const d=Math.min(devicePixelRatio||1,2);
+ cv.width=cv.clientWidth*d;cv.height=cv.clientHeight*d;gl.viewport(0,0,cv.width,cv.height);}
+addEventListener('resize',resize);resize();
+const t0=performance.now();
+function loop(now){gl.uniform2f(uRes,cv.width,cv.height);gl.uniform1f(uT,turb);
+ gl.uniform1f(uTime,(now-t0)/1000);gl.drawArrays(gl.TRIANGLES,0,3);requestAnimationFrame(loop);}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
