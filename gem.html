@@ -52,7 +52,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 <div id="card">
   <canvas id="c"></canvas>
   <div class="ui">
-    <div id="ver">v7 · 17:23</div>
+    <div id="ver">v8 · 18:21</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -79,7 +79,7 @@ varying vec3 vN;varying vec3 vP;
 void main(){vN=normalize(uNM*aNrm);vP=aPos;gl_Position=uMVP*vec4(aPos,1.0);}`;
 
 const fs=`precision highp float;
-uniform float uT;uniform float uTime;uniform vec2 uRes;
+uniform float uT;uniform float uTime;uniform vec2 uRes;uniform float uPass;
 varying vec3 vN;varying vec3 vP;
 
 float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
@@ -110,6 +110,8 @@ vec3 env(vec3 d){
 
 void main(){
   vec3 N=normalize(vN);
+  bool back = uPass > 0.5;
+  if(back) N = -N;                       // 背面：法线朝内看
   vec3 V=normalize(vec3(0.0,0.0,2.05)-vP);
 
   // Schlick Fresnel：只有边缘才强反射
@@ -169,7 +171,18 @@ void main(){
   vec2 g=mod(gl_FragCoord.xy,3.0);
   col*=0.94+0.06*step(1.0,g.x)*step(1.0,g.y);
   col*=0.97+0.03*sin(gl_FragCoord.y*1.6);
-  gl_FragColor=vec4(col,1.0);}`
+
+  if(back){
+    // 背面的面：压暗、去掉体色偏向，但要能被看见
+    col *= 0.62;
+    col += vec3(0.10,0.09,0.16);
+    gl_FragColor=vec4(col,1.0);
+  }else{
+    // 正面的面：半透明，后面的面从这儿透上来
+    float a=0.50+0.30*F;               // 边缘更实、中间更透
+    gl_FragColor=vec4(col,a);
+  }
+}`
 
 function sh(t,s){const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);
  if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))console.error(gl.getShaderInfoLog(o));return o;}
@@ -233,7 +246,8 @@ gl.enableVertexAttribArray(aNrm);gl.vertexAttribPointer(aNrm,3,gl.FLOAT,false,24
 
 const uMVP=gl.getUniformLocation(pr,'uMVP'),uNM=gl.getUniformLocation(pr,'uNM'),
       uT=gl.getUniformLocation(pr,'uT'),uTime=gl.getUniformLocation(pr,'uTime'),
-      uRes=gl.getUniformLocation(pr,'uRes');
+      uRes=gl.getUniformLocation(pr,'uRes'),
+      uPass=gl.getUniformLocation(pr,'uPass');
 
 gl.enable(gl.DEPTH_TEST);
 
@@ -273,7 +287,26 @@ function loop(now){
   gl.uniform2f(uRes,cv.width,cv.height);
   gl.clearColor(0.042,0.036,0.072,1);
   gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-  gl.drawArrays(gl.TRIANGLES,0,VP.length/6);
+
+  const n=VP.length/6;
+  // pass 1：背面（只画背面，写深度）
+  gl.enable(gl.CULL_FACE);
+  gl.cullFace(gl.FRONT);
+  gl.depthMask(true);
+  gl.disable(gl.BLEND);
+  gl.uniform1f(uPass,1.0);
+  gl.drawArrays(gl.TRIANGLES,0,n);
+
+  // pass 2：正面（半透明混合，不写深度）
+  gl.cullFace(gl.BACK);
+  gl.depthMask(false);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+  gl.uniform1f(uPass,0.0);
+  gl.drawArrays(gl.TRIANGLES,0,n);
+  gl.depthMask(true);
+  gl.disable(gl.BLEND);
+
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
