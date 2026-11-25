@@ -52,7 +52,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 <div id="card">
   <canvas id="c"></canvas>
   <div class="ui">
-    <div id="ver">v9 · 18:29</div>
+    <div id="ver">v10 · 18:35</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -96,11 +96,11 @@ float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
 // 透过宝石看它，界线被扭曲 = 立刻有玻璃感
 vec3 env(vec3 d){
   float h=d.y;
-  vec3 sky=vec3(0.075,0.068,0.125);
-  vec3 ground=vec3(0.30,0.26,0.42);
-  vec3 c=mix(ground,sky,smoothstep(-0.55,0.65,h));
+  vec3 sky=vec3(0.030,0.028,0.070);
+  vec3 ground=vec3(0.46,0.40,0.62);
+  vec3 c=mix(ground,sky,smoothstep(-0.26,0.34,h));
   vec3 Ld=normalize(vec3(-0.55,0.62,0.55));
-  c+=vec3(1.0,0.95,1.0)*pow(max(dot(d,Ld),0.0),26.0)*2.4;
+  c+=vec3(1.0,0.96,1.0)*pow(max(dot(d,Ld),0.0),18.0)*3.2;
   c+=vec3(0.16,0.14,0.28)*pow(max(dot(d,normalize(vec3(0.65,-0.35,0.4))),0.0),7.0);
   // 细密的网格线：折射时会跟着弯，最能体现"透"
   float grid=abs(fract(d.x*6.0)-0.5)+abs(fract(d.y*6.0)-0.5);
@@ -130,8 +130,8 @@ void main(){
   vec3 col=mix(trans,refl,F*0.85);
 
   // ---- 内部的亮（不跟着面走，这才是"透"）----
-  float core=exp(-length(vP*vec3(1.30,0.95,1.30)-vec3(0.0,0.05,0.0))*4.6);
-  col+=vec3(0.56,0.50,0.95)*core*0.95;
+  float core=exp(-length(vP*vec3(1.30,0.95,1.30)-vec3(0.0,0.05,0.0))*7.2);
+  col+=vec3(0.56,0.50,0.95)*core*0.55;
   // 底部聚焦（光从上面进来，在下面收成一团）
   float focus=exp(-length(vP-vec3(-0.02,-0.22,0.02))*10.0);
   col+=vec3(0.58,0.64,1.0)*focus*0.70;
@@ -141,7 +141,7 @@ void main(){
   col+=vec3(0.80,0.74,1.0)*exp(-length(vP-vec3(0.04,0.20,-0.08))*30.0)*0.45;
 
   // 边缘稍通透（真宝石四周比中心"薄"）
-  col*=0.90+0.10*smoothstep(0.0,1.0,ct);
+  col*=0.82+0.18*smoothstep(0.0,1.0,ct);
 
   // 内部一点点色散（别太花，KTV 感是从这来的）
   float dsp=sin(dot(R2,vec3(9.0,7.0,11.0))+uTime*0.4);
@@ -186,7 +186,7 @@ void main(){
     gl_FragColor=vec4(col,1.0);
   }else{
     // 正面的面：半透明，后面的面从这儿透上来
-    float a=0.38+0.44*F;               // 边缘更实、中间更透
+    float a=0.18+0.62*F;               // 边缘更实、中间更透
     gl_FragColor=vec4(col,a);
   }
 }`
