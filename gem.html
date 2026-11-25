@@ -71,99 +71,155 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 <script>
 const cv=document.getElementById('c'),gl=cv.getContext('webgl',{antialias:true,alpha:false});
 if(!gl){document.body.innerHTML='<p style="padding:20px">这个浏览器不支持 WebGL</p>'}
-const vs=`attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}`;
+const vs=`attribute vec3 aPos;attribute vec3 aNrm;
+uniform mat4 uMVP;uniform mat3 uNM;
+varying vec3 vN;varying vec3 vP;
+void main(){vN=normalize(uNM*aNrm);vP=aPos;gl_Position=uMVP*vec4(aPos,1.0);}`;
+
 const fs=`precision highp float;
-uniform vec2 uRes;uniform float uT;uniform float uTime;
-float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
-float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
-float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));
-return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}
+uniform float uT;uniform float uTime;uniform vec2 uRes;
+varying vec3 vN;varying vec3 vP;
+float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
+float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+ float n=0.0;
+ for(int x=0;x<2;x++)for(int y=0;y<2;y++)for(int z=0;z<2;z++){
+   n+=mix(mix(mix(hash(i+vec3(x,y,z)),hash(i+vec3(1-x,y,z)),f.x),
+              mix(hash(i+vec3(x,1-y,z)),hash(i+vec3(1-x,1-y,z)),f.x),f.y),
+          mix(mix(hash(i+vec3(x,y,1-z)),hash(i+vec3(1-x,y,1-z)),f.x),
+              mix(hash(i+vec3(x,1-y,1-z)),hash(i+vec3(1-x,1-y,1-z)),f.x),f.y),f.z);}
+ return n/8.0;}
+
 void main(){
-  vec2 p=(gl_FragCoord.xy-0.5*uRes)/min(uRes.x,uRes.y);
-  vec2 q=p/vec2(0.30,0.375);
-  float r=length(q);
-  float inside=1.-smoothstep(0.965,1.0,r);
+  vec3 N=normalize(vN);
+  vec3 V=normalize(vec3(0.0,0.0,2.2)-vP);
 
-  // ---- 切面：极角分面 ----
-  float ang=atan(q.y,q.x);
-  float faces=16.0;
-  float uv=(ang+3.14159265)/6.2831853*faces;
-  float fi=floor(uv);
-  float fa=fract(uv);
-  float rnd=hash(vec2(fi,7.3));
-  float rnd2=hash(vec2(fi,13.9));
+  // 环境：左上亮、右下暗
+  vec3 L1=normalize(vec3(-0.55,0.75,0.6));
+  vec3 L2=normalize(vec3(0.7,-0.3,0.5));
+  float d1=max(dot(N,L1),0.0);
+  float d2=max(dot(N,L2),0.0);
 
-  // 面亮度（假光照：左上光源）
-  float ld=sin(rnd*6.28318*0.7+2.2)*0.5+0.5;
-  float bright=0.30+0.70*ld;
+  // 面基色（紫灰）
+  vec3 base=vec3(0.40,0.37,0.58);
+  vec3 col=base*(0.22+0.78*d1)+vec3(0.18,0.16,0.28)*d2;
 
-  // 棱线
-  float edge=smoothstep(0.,0.045,min(fa,1.-fa));
-  float lum=mix(0.28,1.0,bright);
-  lum+=(1.-edge)*0.55;
+  // 棱面之间亮度跳跃（flat shading 天生就有，这里再加一点点随机）
+  float rnd=hash(floor(N*17.0));
+  col*=0.86+0.28*rnd;
 
-  vec3 base=vec3(0.44,0.41,0.64);
-  vec3 col=base*lum;
+  // Fresnel：边缘更亮（通透感）
+  float fres=pow(1.0-max(dot(N,V),0.0),3.0);
+  col+=vec3(0.55,0.62,1.0)*fres*0.85;
 
-  // 第二层切面（错开角度，做宝石的"内部面"）
-  float uv2=uv*1.7+0.5;
-  float fi2=floor(uv2);
-  float fa2=fract(uv2);
-  float rnd3=hash(vec2(fi2,29.1));
-  float b2=0.5+0.5*sin(rnd3*6.28);
-  float e2=smoothstep(0.,0.08,min(fa2,1.-fa2));
-  col+=vec3(0.30,0.26,0.45)*(1.-e2)*b2*0.35;
+  // 高光
+  vec3 H1=normalize(L1+V);
+  float sp1=pow(max(dot(N,H1),0.0),90.0);
+  col+=vec3(1.0,0.98,1.0)*sp1*1.6;
+  vec3 H2=normalize(L2+V);
+  float sp2=pow(max(dot(N,H2),0.0),40.0);
+  col+=vec3(0.7,0.8,1.0)*sp2*0.5;
 
-  // 内部色散
-  float disp=sin(r*14.0-uTime*0.6+fi*0.8)*0.5+0.5;
-  col+=vec3(0.18,0.10,0.30)*disp*0.5;
-  col+=vec3(0.10,0.22,0.26)*(1.0-disp)*0.35;
+  // 内部"折射"的彩虹（用视线和法线角度算）
+  float ior=dot(N,V);
+  float disp=sin(ior*22.0+uTime*0.5+vP.y*9.0);
+  col+=vec3(0.16,0.06,0.26)*max(disp,0.0)*0.55;
+  col+=vec3(0.06,0.18,0.20)*max(-disp,0.0)*0.45;
 
-  // 中心高光
-  vec2 sp=q-vec2(-0.12,0.22);
-  col+=vec3(1.0,0.97,1.0)*exp(-length(sp)*7.5)*0.95;
-  vec2 sp2=q-vec2(0.14,-0.26);
-  col+=vec3(0.75,0.82,1.0)*exp(-length(sp2)*13.0)*0.55;
+  // 浑浊：内部噪声
+  float nz=noise3(vP*6.0+vec3(0.0,uTime*0.05,0.0))*0.65
+          +noise3(vP*15.0)*0.35;
+  vec3 muddy=vec3(0.50,0.46,0.55);
+  col=mix(col,muddy,uT*nz*0.9);
+  col=mix(col,vec3(0.26,0.24,0.32),uT*0.25);
 
-  // 浑浊
-  float n=noise(p*7.0+uTime*0.05)*0.6+noise(p*19.0)*0.4;
-  vec3 muddy=vec3(0.52,0.48,0.58);
-  col=mix(col,muddy,uT*n*0.85);
-  col=mix(col,vec3(0.30,0.28,0.36),uT*0.20);
+  vec3 bg=vec3(0.042,0.036,0.072);
+  float a=1.0;
+  col=mix(bg,col,a);
 
-  // 边缘光
-  float rim=smoothstep(0.80,1.0,r)*(1.-smoothstep(1.0,1.03,r));
-  col+=vec3(0.55,0.66,1.0)*rim*1.05;
-
-  // 外圈辉光
-  float glow=exp(-max(0.,r-1.0)*3.2)*0.20;
-  col+=vec3(0.34,0.30,0.58)*glow;
-
-  vec3 bg=vec3(0.045,0.038,0.075);
-  col=mix(bg,col,inside);
-
-  // 网点印刷质感
+  // 网点
   vec2 g=mod(gl_FragCoord.xy,3.0);
-  float dt=step(1.0,g.x)*step(1.0,g.y);
-  col*=0.94+0.06*dt;
-
-  // 轻微扫描线
+  col*=0.94+0.06*step(1.0,g.x)*step(1.0,g.y);
   col*=0.97+0.03*sin(gl_FragCoord.y*1.6);
+  gl_FragColor=vec4(col,1.0);}`;
 
-  gl_FragColor=vec4(col,1.0);
-}`;
 function sh(t,s){const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);
  if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))console.error(gl.getShaderInfoLog(o));return o;}
 const pr=gl.createProgram();
 gl.attachShader(pr,sh(gl.VERTEX_SHADER,vs));
 gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,fs));
 gl.linkProgram(pr);gl.useProgram(pr);
+
+// ---------- icosphere ----------
+function icosphere(subdiv){
+  const t=(1+Math.sqrt(5))/2;
+  let v=[[-1,t,0],[1,t,0],[-1,-t,0],[1,-t,0],
+         [0,-1,t],[0,1,t],[0,-1,-t],[0,1,-t],
+         [t,0,-1],[t,0,1],[-t,0,-1],[-t,0,1]];
+  let f=[[0,11,5],[0,5,1],[0,1,7],[0,7,10],[0,10,11],
+         [1,5,9],[5,11,4],[11,10,2],[10,7,6],[7,1,8],
+         [3,9,4],[3,4,2],[3,2,6],[3,6,8],[3,8,9],
+         [4,9,5],[2,4,11],[6,2,10],[8,6,7],[9,8,1]];
+  v=v.map(p=>{const l=Math.hypot(...p);return p.map(x=>x/l);});
+  for(let s=0;s<subdiv;s++){
+    const nf=[],cache={};
+    const mid=(a,b)=>{
+      const k=a<b?a+'_'+b:b+'_'+a;
+      if(cache[k]!==undefined)return cache[k];
+      const p=[(v[a][0]+v[b][0])/2,(v[a][1]+v[b][1])/2,(v[a][2]+v[b][2])/2];
+      const l=Math.hypot(...p);
+      v.push(p.map(x=>x/l));cache[k]=v.length-1;return cache[k];
+    };
+    for(const [a,b,c] of f){
+      const ab=mid(a,b),bc=mid(b,c),ca=mid(c,a);
+      nf.push([a,ab,ca],[b,bc,ab],[c,ca,bc],[ab,bc,ca]);
+    }
+    f=nf;
+  }
+  return {v,f};
+}
+const {v:IV,f:IF}=icosphere(2);   // 320 面
+
+// 椭球 + 顶点扰动（不规则切割）
+const rx=0.335, ry=0.405, rz=0.315;
+function jitter(p){
+  const s=Math.sin(p[0]*9.1+p[1]*7.3)*Math.cos(p[2]*8.7+p[0]*4.1);
+  const k=1.0+s*0.035;
+  return [p[0]*rx*k, p[1]*ry*k, p[2]*rz*k];
+}
+const VP=[];
+for(const [a,b,c] of IF){
+  const A=jitter(IV[a]),B=jitter(IV[b]),C=jitter(IV[c]);
+  // flat normal
+  const u=[B[0]-A[0],B[1]-A[1],B[2]-A[2]];
+  const w=[C[0]-A[0],C[1]-A[1],C[2]-A[2]];
+  let n=[u[1]*w[2]-u[2]*w[1],u[2]*w[0]-u[0]*w[2],u[0]*w[1]-u[1]*w[0]];
+  const ln=Math.hypot(...n)||1; n=n.map(x=>x/ln);
+  for(const P of [A,B,C]) VP.push(P[0],P[1],P[2],n[0],n[1],n[2]);
+}
 const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);
-gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
-const loc=gl.getAttribLocation(pr,'p');gl.enableVertexAttribArray(loc);
-gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
-const uRes=gl.getUniformLocation(pr,'uRes'),uT=gl.getUniformLocation(pr,'uT'),
-      uTime=gl.getUniformLocation(pr,'uTime');
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(VP),gl.STATIC_DRAW);
+const aPos=gl.getAttribLocation(pr,'aPos'),aNrm=gl.getAttribLocation(pr,'aNrm');
+gl.enableVertexAttribArray(aPos);gl.vertexAttribPointer(aPos,3,gl.FLOAT,false,24,0);
+gl.enableVertexAttribArray(aNrm);gl.vertexAttribPointer(aNrm,3,gl.FLOAT,false,24,12);
+
+const uMVP=gl.getUniformLocation(pr,'uMVP'),uNM=gl.getUniformLocation(pr,'uNM'),
+      uT=gl.getUniformLocation(pr,'uT'),uTime=gl.getUniformLocation(pr,'uTime'),
+      uRes=gl.getUniformLocation(pr,'uRes');
+
+gl.enable(gl.DEPTH_TEST);
+
+function mul(a,b){const o=new Float32Array(16);
+ for(let i=0;i<4;i++)for(let j=0;j<4;j++){let s=0;
+  for(let k=0;k<4;k++)s+=a[k*4+j]*b[i*4+k];o[i*4+j]=s;}return o;}
+function persp(fovy,asp,n,f){const t=1/Math.tan(fovy/2);const o=new Float32Array(16);
+ o[0]=t/asp;o[5]=t;o[10]=(f+n)/(n-f);o[11]=-1;o[14]=2*f*n/(n-f);return o;}
+function rotY(a){const c=Math.cos(a),s=Math.sin(a);return new Float32Array(
+ [c,0,-s,0, 0,1,0,0, s,0,c,0, 0,0,0,1]);}
+function rotX(a){const c=Math.cos(a),s=Math.sin(a);return new Float32Array(
+ [1,0,0,0, 0,c,s,0, 0,-s,c,0, 0,0,0,1]);}
+function transZ(z){const o=new Float32Array(16);o[0]=o[5]=o[10]=o[15]=1;o[14]=z;return o;}
+function nm3(m){return new Float32Array([m[0],m[4],m[8],m[1],m[5],m[9],m[2],m[6],m[10]]);}
+
 let turb=0.62;
 const r=document.getElementById('r'),tb=document.getElementById('tb'),cl=document.getElementById('cl');
 r.addEventListener('input',()=>{turb=r.value/100;tb.textContent=r.value+'%';
@@ -171,9 +227,26 @@ r.addEventListener('input',()=>{turb=r.value/100;tb.textContent=r.value+'%';
 function resize(){const d=Math.min(devicePixelRatio||1,2);
  cv.width=cv.clientWidth*d;cv.height=cv.clientHeight*d;gl.viewport(0,0,cv.width,cv.height);}
 addEventListener('resize',resize);resize();
+
 const t0=performance.now();
-function loop(now){gl.uniform2f(uRes,cv.width,cv.height);gl.uniform1f(uT,turb);
- gl.uniform1f(uTime,(now-t0)/1000);gl.drawArrays(gl.TRIANGLES,0,3);requestAnimationFrame(loop);}
+function loop(now){
+  const t=(now-t0)/1000;
+  const asp=cv.width/cv.height;
+  const proj=persp(0.62,asp,0.1,10);
+  const view=transZ(-2.05);
+  const model=mul(rotX(-0.14),rotY(t*0.22));
+  const mv=mul(view,model);
+  const mvp=mul(proj,mv);
+  gl.uniformMatrix4fv(uMVP,false,mvp);
+  gl.uniformMatrix3fv(uNM,false,nm3(mv));
+  gl.uniform1f(uT,turb);
+  gl.uniform1f(uTime,t);
+  gl.uniform2f(uRes,cv.width,cv.height);
+  gl.clearColor(0.042,0.036,0.072,1);
+  gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.drawArrays(gl.TRIANGLES,0,VP.length/6);
+  requestAnimationFrame(loop);
+}
 requestAnimationFrame(loop);
 </script>
 </body>
