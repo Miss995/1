@@ -52,7 +52,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 <div id="card">
   <canvas id="c"></canvas>
   <div class="ui">
-    <div id="ver">v10 · 18:35</div>
+    <div id="ver">v12 · 18:40</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -96,15 +96,14 @@ float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
 // 透过宝石看它，界线被扭曲 = 立刻有玻璃感
 vec3 env(vec3 d){
   float h=d.y;
-  vec3 sky=vec3(0.030,0.028,0.070);
-  vec3 ground=vec3(0.46,0.40,0.62);
-  vec3 c=mix(ground,sky,smoothstep(-0.26,0.34,h));
+  vec3 sky=vec3(0.022,0.020,0.052);
+  vec3 ground=vec3(0.20,0.145,0.365);
+  vec3 c=mix(ground,sky,smoothstep(-0.22,0.20,h));
   vec3 Ld=normalize(vec3(-0.55,0.62,0.55));
-  c+=vec3(1.0,0.96,1.0)*pow(max(dot(d,Ld),0.0),18.0)*3.2;
-  c+=vec3(0.16,0.14,0.28)*pow(max(dot(d,normalize(vec3(0.65,-0.35,0.4))),0.0),7.0);
-  // 细密的网格线：折射时会跟着弯，最能体现"透"
-  float grid=abs(fract(d.x*6.0)-0.5)+abs(fract(d.y*6.0)-0.5);
-  c+=vec3(0.11,0.11,0.18)*(1.0-smoothstep(0.0,0.075,grid));
+  c+=vec3(1.0,0.96,1.0)*pow(max(dot(d,Ld),0.0),22.0)*2.8;
+  c+=vec3(0.16,0.10,0.30)*pow(max(dot(d,normalize(vec3(0.62,-0.42,0.42))),0.0),6.0);
+  float grid=abs(fract(d.x*7.0)-0.5)+abs(fract(d.y*7.0)-0.5);
+  c+=vec3(0.055,0.045,0.110)*(1.0-smoothstep(0.0,0.06,grid));
   return c;
 }
 
@@ -124,7 +123,7 @@ void main(){
   if(dot(R2,R2)<0.001) R2=R1;          // 全反射兜底
   if(dot(R1,R1)<0.001) R1=-reflect(-V,N);
 
-  vec3 trans=env(normalize(R2+vP*0.40))*vec3(0.86,0.84,1.0);   // 体色（淡紫）
+  vec3 trans=env(normalize(R2+vP*0.40))*vec3(0.74,0.60,1.05);   // 体色（淡紫）
   vec3 refl =env(reflect(-V,N));
 
   vec3 col=mix(trans,refl,F*0.85);
@@ -141,7 +140,7 @@ void main(){
   col+=vec3(0.80,0.74,1.0)*exp(-length(vP-vec3(0.04,0.20,-0.08))*30.0)*0.45;
 
   // 边缘稍通透（真宝石四周比中心"薄"）
-  col*=0.82+0.18*smoothstep(0.0,1.0,ct);
+  col*=0.74+0.26*smoothstep(0.0,1.0,ct);
 
   // 内部一点点色散（别太花，KTV 感是从这来的）
   float dsp=sin(dot(R2,vec3(9.0,7.0,11.0))+uTime*0.4);
@@ -178,7 +177,7 @@ void main(){
     float dIn=max(dot(N0,normalize(vP+vec3(0.0,0.0001,0.0))),0.0);  // 朝中心的亮
     float dIn2=max(dot(N0,normalize(vec3(-0.45,0.72,0.5))),0.0);    // 另一侧的辅助
     float lum=0.06 + 1.55*pow(dIn,1.6) + 0.42*dIn2;
-    col=vec3(0.52,0.47,0.76)*lum;
+    col=vec3(0.46,0.38,0.78)*lum;
     col+=vec3(0.05,0.04,0.09);
     // 靠近中心更亮（芯的内侧）
     float coreIn=exp(-length(vP)*3.4);
