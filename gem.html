@@ -102,7 +102,7 @@ vec3 env(vec3 d){
   c+=vec3(0.16,0.14,0.28)*pow(max(dot(d,normalize(vec3(0.65,-0.35,0.4))),0.0),7.0);
   // 细密的网格线：折射时会跟着弯，最能体现"透"
   float grid=abs(fract(d.x*6.0)-0.5)+abs(fract(d.y*6.0)-0.5);
-  c+=vec3(0.05,0.05,0.09)*(1.0-smoothstep(0.0,0.06,grid));
+  c+=vec3(0.11,0.11,0.18)*(1.0-smoothstep(0.0,0.075,grid));
   return c;
 }
 
@@ -120,10 +120,24 @@ void main(){
   if(dot(R2,R2)<0.001) R2=R1;          // 全反射兜底
   if(dot(R1,R1)<0.001) R1=-reflect(-V,N);
 
-  vec3 trans=env(R2)*vec3(0.86,0.84,1.0);   // 体色（淡紫）
+  vec3 trans=env(normalize(R2+vP*0.40))*vec3(0.86,0.84,1.0);   // 体色（淡紫）
   vec3 refl =env(reflect(-V,N));
 
   vec3 col=mix(trans,refl,F*0.85);
+
+  // ---- 内部的亮（不跟着面走，这才是"透"）----
+  float core=exp(-length(vP*vec3(1.30,0.95,1.30)-vec3(0.0,0.05,0.0))*4.6);
+  col+=vec3(0.52,0.46,0.86)*core*0.62;
+  // 底部聚焦（光从上面进来，在下面收成一团）
+  float focus=exp(-length(vP-vec3(-0.02,-0.22,0.02))*10.0);
+  col+=vec3(0.55,0.60,1.0)*focus*0.45;
+  // 几粒内部碎光
+  col+=vec3(0.92,0.90,1.0)*exp(-length(vP-vec3(-0.09,0.13,0.06))*24.0)*0.85;
+  col+=vec3(0.70,0.78,1.0)*exp(-length(vP-vec3(0.11,-0.05,-0.03))*28.0)*0.55;
+  col+=vec3(0.80,0.74,1.0)*exp(-length(vP-vec3(0.04,0.20,-0.08))*30.0)*0.45;
+
+  // 边缘稍通透（真宝石四周比中心"薄"）
+  col*=0.90+0.10*smoothstep(0.0,1.0,ct);
 
   // 内部一点点色散（别太花，KTV 感是从这来的）
   float dsp=sin(dot(R2,vec3(9.0,7.0,11.0))+uTime*0.4);
