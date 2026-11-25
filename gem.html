@@ -79,6 +79,7 @@ void main(){vN=normalize(uNM*aNrm);vP=aPos;gl_Position=uMVP*vec4(aPos,1.0);}`;
 const fs=`precision highp float;
 uniform float uT;uniform float uTime;uniform vec2 uRes;
 varying vec3 vN;varying vec3 vP;
+
 float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
 float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
  float n=0.0;
@@ -89,58 +90,70 @@ float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
               mix(hash(i+vec3(x,1-y,1-z)),hash(i+vec3(1-x,1-y,1-z)),f.x),f.y),f.z);}
  return n/8.0;}
 
+// 环境：上暗下亮的地平线 + 一个主光源
+// 透过宝石看它，界线被扭曲 = 立刻有玻璃感
+vec3 env(vec3 d){
+  float h=d.y;
+  vec3 sky=vec3(0.075,0.068,0.125);
+  vec3 ground=vec3(0.30,0.26,0.42);
+  vec3 c=mix(ground,sky,smoothstep(-0.55,0.65,h));
+  vec3 Ld=normalize(vec3(-0.55,0.62,0.55));
+  c+=vec3(1.0,0.95,1.0)*pow(max(dot(d,Ld),0.0),26.0)*2.4;
+  c+=vec3(0.16,0.14,0.28)*pow(max(dot(d,normalize(vec3(0.65,-0.35,0.4))),0.0),7.0);
+  // 细密的网格线：折射时会跟着弯，最能体现"透"
+  float gl_=abs(fract(d.x*6.0)-0.5)+abs(fract(d.y*6.0)-0.5);
+  c+=vec3(0.05,0.05,0.09)*(1.0-smoothstep(0.0,0.06,gl_));
+  return c;
+}
+
 void main(){
   vec3 N=normalize(vN);
-  vec3 V=normalize(vec3(0.0,0.0,2.2)-vP);
+  vec3 V=normalize(vec3(0.0,0.0,2.05)-vP);
 
-  // 环境：左上亮、右下暗
-  vec3 L1=normalize(vec3(-0.55,0.75,0.6));
-  vec3 L2=normalize(vec3(0.7,-0.3,0.5));
-  float d1=max(dot(N,L1),0.0);
-  float d2=max(dot(N,L2),0.0);
+  // Schlick Fresnel：只有边缘才强反射
+  float ct=max(dot(N,V),0.0);
+  float F=0.045+0.955*pow(1.0-ct,5.0);
 
-  // 面基色（紫灰）
-  vec3 base=vec3(0.40,0.37,0.58);
-  vec3 col=base*(0.22+0.78*d1)+vec3(0.18,0.16,0.28)*d2;
+  // 折射：进去一次，出来一次
+  vec3 R1=refract(-V,N,1.0/1.55);
+  vec3 R2=refract(R1,-N,1.55);
+  if(dot(R2,R2)<0.001) R2=R1;          // 全反射兜底
+  if(dot(R1,R1)<0.001) R1=-reflect(-V,N);
 
-  // 棱面之间亮度跳跃（flat shading 天生就有，这里再加一点点随机）
-  float rnd=hash(floor(N*17.0));
-  col*=0.86+0.28*rnd;
+  vec3 trans=env(R2)*vec3(0.86,0.84,1.0);   // 体色（淡紫）
+  vec3 refl =env(reflect(-V,N));
 
-  // Fresnel：边缘更亮（通透感）
-  float fres=pow(1.0-max(dot(N,V),0.0),3.0);
-  col+=vec3(0.55,0.62,1.0)*fres*0.85;
+  vec3 col=mix(trans,refl,F*0.85);
 
-  // 高光
-  vec3 H1=normalize(L1+V);
-  float sp1=pow(max(dot(N,H1),0.0),90.0);
-  col+=vec3(1.0,0.98,1.0)*sp1*1.6;
-  vec3 H2=normalize(L2+V);
-  float sp2=pow(max(dot(N,H2),0.0),40.0);
-  col+=vec3(0.7,0.8,1.0)*sp2*0.5;
+  // 内部一点点色散（别太花，KTV 感是从这来的）
+  float dsp=sin(dot(R2,vec3(9.0,7.0,11.0))+uTime*0.4);
+  col+=vec3(0.05,0.01,0.08)*dsp*0.35;
 
-  // 内部"折射"的彩虹（用视线和法线角度算）
-  float ior=dot(N,V);
-  float disp=sin(ior*22.0+uTime*0.5+vP.y*9.0);
-  col+=vec3(0.16,0.06,0.26)*max(disp,0.0)*0.55;
-  col+=vec3(0.06,0.18,0.20)*max(-disp,0.0)*0.45;
+  // 锐高光
+  vec3 Ld=normalize(vec3(-0.55,0.62,0.55));
+  vec3 H=normalize(Ld+V);
+  float sp=pow(max(dot(N,H),0.0),140.0);
+  col+=vec3(1.0,0.99,1.0)*sp*1.4;
 
-  // 浑浊：内部噪声
-  float nz=noise3(vP*6.0+vec3(0.0,uTime*0.05,0.0))*0.65
-          +noise3(vP*15.0)*0.35;
-  vec3 muddy=vec3(0.50,0.46,0.55);
-  col=mix(col,muddy,uT*nz*0.9);
-  col=mix(col,vec3(0.26,0.24,0.32),uT*0.25);
+  // 极细的棱线提亮（面的边），让切面看得出
+  float rimF=pow(1.0-ct,2.2);
+  col+=vec3(0.42,0.46,0.72)*rimF*0.35;
 
+  // 浑浊：内部絮状
+  float nz=noise3(vP*5.0+vec3(0.0,uTime*0.04,0.0))*0.60
+          +noise3(vP*13.0)*0.40;
+  vec3 muddy=vec3(0.46,0.42,0.50);
+  col=mix(col,muddy,uT*nz*0.85);
+  col=mix(col,vec3(0.20,0.18,0.26),uT*0.22);
+
+  // 背景（跟 env 的地平线对上，宝石才像浮在其中）
   vec3 bg=vec3(0.042,0.036,0.072);
-  float a=1.0;
-  col=mix(bg,col,a);
 
   // 网点
   vec2 g=mod(gl_FragCoord.xy,3.0);
   col*=0.94+0.06*step(1.0,g.x)*step(1.0,g.y);
   col*=0.97+0.03*sin(gl_FragCoord.y*1.6);
-  gl_FragColor=vec4(col,1.0);}`;
+  gl_FragColor=vec4(col,1.0);}`
 
 function sh(t,s){const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);
  if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))console.error(gl.getShaderInfoLog(o));return o;}
@@ -177,7 +190,7 @@ function icosphere(subdiv){
   }
   return {v,f};
 }
-const {v:IV,f:IF}=icosphere(2);   // 320 面
+const {v:IV,f:IF}=icosphere(1);   // 80 面（大块）
 
 // 椭球 + 顶点扰动（不规则切割）
 const rx=0.335, ry=0.405, rz=0.315;
