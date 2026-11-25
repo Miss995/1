@@ -52,7 +52,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 <div id="card">
   <canvas id="c"></canvas>
   <div class="ui">
-    <div id="ver">v8 · 18:21</div>
+    <div id="ver">v9 · 18:29</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -131,10 +131,10 @@ void main(){
 
   // ---- 内部的亮（不跟着面走，这才是"透"）----
   float core=exp(-length(vP*vec3(1.30,0.95,1.30)-vec3(0.0,0.05,0.0))*4.6);
-  col+=vec3(0.52,0.46,0.86)*core*0.62;
+  col+=vec3(0.56,0.50,0.95)*core*0.95;
   // 底部聚焦（光从上面进来，在下面收成一团）
   float focus=exp(-length(vP-vec3(-0.02,-0.22,0.02))*10.0);
-  col+=vec3(0.55,0.60,1.0)*focus*0.45;
+  col+=vec3(0.58,0.64,1.0)*focus*0.70;
   // 几粒内部碎光
   col+=vec3(0.92,0.90,1.0)*exp(-length(vP-vec3(-0.09,0.13,0.06))*24.0)*0.85;
   col+=vec3(0.70,0.78,1.0)*exp(-length(vP-vec3(0.11,-0.05,-0.03))*28.0)*0.55;
@@ -173,13 +173,20 @@ void main(){
   col*=0.97+0.03*sin(gl_FragCoord.y*1.6);
 
   if(back){
-    // 背面的面：压暗、去掉体色偏向，但要能被看见
-    col *= 0.62;
-    col += vec3(0.10,0.09,0.16);
+    // ---- 背面的面：用「从中心往外」的内部光，做出强明暗 ----
+    vec3 N0=normalize(vN);                  // 原始法线（朝外）
+    float dIn=max(dot(N0,normalize(vP+vec3(0.0,0.0001,0.0))),0.0);  // 朝中心的亮
+    float dIn2=max(dot(N0,normalize(vec3(-0.45,0.72,0.5))),0.0);    // 另一侧的辅助
+    float lum=0.06 + 1.55*pow(dIn,1.6) + 0.42*dIn2;
+    col=vec3(0.52,0.47,0.76)*lum;
+    col+=vec3(0.05,0.04,0.09);
+    // 靠近中心更亮（芯的内侧）
+    float coreIn=exp(-length(vP)*3.4);
+    col+=vec3(0.55,0.50,0.92)*coreIn*0.55;
     gl_FragColor=vec4(col,1.0);
   }else{
     // 正面的面：半透明，后面的面从这儿透上来
-    float a=0.50+0.30*F;               // 边缘更实、中间更透
+    float a=0.38+0.44*F;               // 边缘更实、中间更透
     gl_FragColor=vec4(col,a);
   }
 }`
