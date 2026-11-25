@@ -52,7 +52,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 <div id="card">
   <canvas id="c"></canvas>
   <div class="ui">
-    <div id="ver">v13 · 18:45</div>
+    <div id="ver">v14 · 18:59</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -139,8 +139,14 @@ void main(){
   col+=vec3(0.70,0.78,1.0)*exp(-length(vP-vec3(0.11,-0.05,-0.03))*28.0)*0.55;
   col+=vec3(0.80,0.74,1.0)*exp(-length(vP-vec3(0.04,0.20,-0.08))*30.0)*0.45;
 
-  // 边缘稍通透（真宝石四周比中心"薄"）
-  col*=0.74+0.26*smoothstep(0.0,1.0,ct);
+  // ---- 表面受光：方向感全靠这一层 ----
+  vec3 Ls=normalize(vec3(-0.45,0.72,0.52));
+  float lam=max(dot(N,Ls),0.0);
+  col*=0.42+1.05*lam;
+  // 顶端一线被照亮
+  col+=vec3(0.30,0.26,0.50)*pow(lam,4.0)*0.55;
+  // 背光侧压暗，但要留住内部的亮
+  col*=0.86+0.14*ct;
 
   // 内部一点点色散（别太花，KTV 感是从这来的）
   float dsp=sin(dot(R2,vec3(9.0,7.0,11.0))+uTime*0.4);
@@ -150,7 +156,7 @@ void main(){
   vec3 Ld=normalize(vec3(-0.55,0.62,0.55));
   vec3 H=normalize(Ld+V);
   float sp=pow(max(dot(N,H),0.0),140.0);
-  col+=vec3(1.0,0.99,1.0)*sp*1.4;
+  col+=vec3(1.0,0.99,1.0)*sp*2.4;
 
   // 极细的棱线提亮（面的边），让切面看得出
   float rimF=pow(1.0-ct,2.2);
@@ -185,7 +191,7 @@ void main(){
     gl_FragColor=vec4(col,1.0);
   }else{
     // 正面的面：半透明，后面的面从这儿透上来
-    float a=0.18+0.62*F;               // 边缘更实、中间更透
+    float a=0.40+0.46*F;               // 边缘更实、中间更透
     gl_FragColor=vec4(col,a);
   }
 }`
