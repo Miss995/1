@@ -101,8 +101,8 @@ vec3 env(vec3 d){
   c+=vec3(1.0,0.95,1.0)*pow(max(dot(d,Ld),0.0),26.0)*2.4;
   c+=vec3(0.16,0.14,0.28)*pow(max(dot(d,normalize(vec3(0.65,-0.35,0.4))),0.0),7.0);
   // 细密的网格线：折射时会跟着弯，最能体现"透"
-  float gl_=abs(fract(d.x*6.0)-0.5)+abs(fract(d.y*6.0)-0.5);
-  c+=vec3(0.05,0.05,0.09)*(1.0-smoothstep(0.0,0.06,gl_));
+  float grid=abs(fract(d.x*6.0)-0.5)+abs(fract(d.y*6.0)-0.5);
+  c+=vec3(0.05,0.05,0.09)*(1.0-smoothstep(0.0,0.06,grid));
   return c;
 }
 
