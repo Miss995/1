@@ -66,7 +66,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 <div id="card">
   <canvas id="c"></canvas>
   <div class="ui">
-    <div id="ver">v22 · 19:35</div>
+    <div id="ver">v23 · 19:46</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -99,6 +99,16 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <div class="pr"><div><span>受光斜率</span><b id="v_lm">0.50</b></div><input id="s_lm" type="range" min="0" max="200" value="50"></div>
   <div class="pr"><div><span>受光底数</span><b id="v_lb">0.55</b></div><input id="s_lb" type="range" min="0" max="150" value="55"></div>
   <div class="pr"><div><span>色散</span><b id="v_dp">0.35</b></div><input id="s_dp" type="range" min="0" max="200" value="35"></div>
+  <div style="height:1px;background:rgba(150,130,220,.3);margin:8px 0"></div>
+  <h4 style="margin:0 0 4px">加法项 · 逐项排</h4>
+  <div class="pr"><div><span>内部亮</span><b id="v_cg">0.26</b></div><input id="s_cg" type="range" min="0" max="200" value="26"></div>
+  <div class="pr"><div><span>底部聚焦</span><b id="v_fg">0.40</b></div><input id="s_fg" type="range" min="0" max="200" value="40"></div>
+  <div class="pr"><div><span>碎光</span><b id="v_sg">1.00</b></div><input id="s_sg" type="range" min="0" max="200" value="100"></div>
+  <div class="pr"><div><span>棱线</span><b id="v_rg">0.16</b></div><input id="s_rg" type="range" min="0" max="100" value="16"></div>
+  <div class="pr"><div><span>锐高光强度</span><b id="v_pg">2.40</b></div><input id="s_pg" type="range" min="0" max="600" value="240"></div>
+  <div class="pr"><div><span>锐高光锐度</span><b id="v_pp">140</b></div><input id="s_pp" type="range" min="2" max="300" value="140"></div>
+  <div class="pr"><div><span>浑浊强度</span><b id="v_tg">0.85</b></div><input id="s_tg" type="range" min="0" max="200" value="85"></div>
+  <div class="pr"><div><span>背面光</span><b id="v_bg">1.55</b></div><input id="s_bg" type="range" min="0" max="400" value="155"></div>
 </div>
 <script>
 const cv=document.getElementById('c'),gl=cv.getContext('webgl',{antialias:true,alpha:false});
@@ -120,6 +130,14 @@ uniform float uDecay;
 uniform float uLamSlope;
 uniform float uLamBase;
 uniform float uDisp;
+uniform float uCoreGain;
+uniform float uFocusGain;
+uniform float uSparkGain;
+uniform float uRimGain;
+uniform float uSpecGain;
+uniform float uSpecPow;
+uniform float uTurbGain;
+uniform float uBackGain;
 varying vec3 vN;varying vec3 vP;varying float vFace;
 
 const float FACE_N = 80.0;
@@ -194,14 +212,14 @@ void main(){
 
   // ---- 内部的亮（不跟着面走，这才是"透"）----
   float core=exp(-length(vP*vec3(1.30,0.95,1.30)-vec3(0.0,0.05,0.0))*7.2);
-  col+=vec3(0.56,0.50,0.95)*core*0.26;
+  col+=vec3(0.56,0.50,0.95)*core*uCoreGain;
   // 底部聚焦（光从上面进来，在下面收成一团）
   float focus=exp(-length(vP-vec3(-0.02,-0.22,0.02))*10.0);
-  col+=vec3(0.58,0.64,1.0)*focus*0.40;
+  col+=vec3(0.58,0.64,1.0)*focus*uFocusGain;
   // 几粒内部碎光
-  col+=vec3(0.92,0.90,1.0)*exp(-length(vP-vec3(-0.09,0.13,0.06))*24.0)*0.85;
-  col+=vec3(0.70,0.78,1.0)*exp(-length(vP-vec3(0.11,-0.05,-0.03))*28.0)*0.55;
-  col+=vec3(0.80,0.74,1.0)*exp(-length(vP-vec3(0.04,0.20,-0.08))*30.0)*0.45;
+  col+=vec3(0.92,0.90,1.0)*exp(-length(vP-vec3(-0.09,0.13,0.06))*24.0)*0.85*uSparkGain;
+  col+=vec3(0.70,0.78,1.0)*exp(-length(vP-vec3(0.11,-0.05,-0.03))*28.0)*0.55*uSparkGain;
+  col+=vec3(0.80,0.74,1.0)*exp(-length(vP-vec3(0.04,0.20,-0.08))*30.0)*0.45*uSparkGain;
 
   // ---- 表面受光：方向感全靠这一层 ----
   vec3 Ls=normalize(vec3(-0.45,0.72,0.52));
@@ -219,18 +237,18 @@ void main(){
   // 锐高光
   vec3 Ld=normalize(vec3(-0.55,0.62,0.55));
   vec3 H=normalize(Ld+V);
-  float sp=pow(max(dot(N,H),0.0),140.0);
-  col+=vec3(1.0,0.99,1.0)*sp*2.4;
+  float sp=pow(max(dot(N,H),0.0),uSpecPow);
+  col+=vec3(1.0,0.99,1.0)*sp*uSpecGain;
 
   // 极细的棱线提亮（面的边），让切面看得出
   float rimF=pow(1.0-ct,2.2);
-  col+=vec3(0.42,0.46,0.72)*rimF*0.16;
+  col+=vec3(0.42,0.46,0.72)*rimF*uRimGain;
 
   // 浑浊：内部絮状
   float nz=noise3(vP*5.0+vec3(0.0,uTime*0.04,0.0))*0.60
           +noise3(vP*13.0)*0.40;
   vec3 muddy=vec3(0.46,0.42,0.50);
-  col=mix(col,muddy,uT*nz*0.85);
+  col=mix(col,muddy,uT*nz*uTurbGain);
   col=mix(col,vec3(0.20,0.18,0.26),uT*0.22);
 
   // 背景（跟 env 的地平线对上，宝石才像浮在其中）
@@ -246,7 +264,7 @@ void main(){
     vec3 N0=normalize(vN);                  // 原始法线（朝外）
     float dIn=max(dot(N0,normalize(vP+vec3(0.0,0.0001,0.0))),0.0);  // 朝中心的亮
     float dIn2=max(dot(N0,normalize(vec3(-0.45,0.72,0.5))),0.0);    // 另一侧的辅助
-    float lum=0.06 + 1.55*pow(dIn,1.6) + 0.42*dIn2;
+    float lum=0.06 + uBackGain*pow(dIn,1.6) + 0.42*dIn2;
     col=vec3(0.46,0.38,0.78)*lum;
     col+=vec3(0.05,0.04,0.09);
     // 靠近中心更亮（芯的内侧）
@@ -371,9 +389,19 @@ const uMVP=gl.getUniformLocation(pr,'uMVP'),uNM=gl.getUniformLocation(pr,'uNM'),
       uDecay=gl.getUniformLocation(pr,'uDecay'),
       uLamSlope=gl.getUniformLocation(pr,'uLamSlope'),
       uLamBase=gl.getUniformLocation(pr,'uLamBase'),
-      uDisp=gl.getUniformLocation(pr,'uDisp');
+      uDisp=gl.getUniformLocation(pr,'uDisp'),
+      uCoreGain=gl.getUniformLocation(pr,'uCoreGain'),
+      uFocusGain=gl.getUniformLocation(pr,'uFocusGain'),
+      uSparkGain=gl.getUniformLocation(pr,'uSparkGain'),
+      uRimGain=gl.getUniformLocation(pr,'uRimGain'),
+      uSpecGain=gl.getUniformLocation(pr,'uSpecGain'),
+      uSpecPow=gl.getUniformLocation(pr,'uSpecPow'),
+      uTurbGain=gl.getUniformLocation(pr,'uTurbGain'),
+      uBackGain=gl.getUniformLocation(pr,'uBackGain');
 
-const LP = {pow:4.6, sharp:22, facePow:3.2, innerGain:0.55, decay:0.66, lamSlope:0.50, lamBase:0.55, disp:0.35};
+const LP = {pow:4.6, sharp:22, facePow:3.2, innerGain:0.55, decay:0.66, lamSlope:0.50, lamBase:0.55, disp:0.35,
+            coreGain:0.26, focusGain:0.40, sparkGain:1.00, rimGain:0.16,
+            specGain:2.40, specPow:140, turbGain:0.85, backGain:1.55};
 // 【2026-11-26 修】默认值直接写死在 LP 里，滑杆只负责"改了就跟"。
 // 之前读 el.value 当初始化 → 某些环境下读回 0/空，参数全归零，画面就不动了。
 function bindSlider(id, key, div){
@@ -396,6 +424,14 @@ bindSlider('dc','decay',100);
 bindSlider('lm','lamSlope',100);
 bindSlider('lb','lamBase',100);
 bindSlider('dp','disp',100);
+bindSlider('cg','coreGain',100);
+bindSlider('fg','focusGain',100);
+bindSlider('sg','sparkGain',100);
+bindSlider('rg','rimGain',100);
+bindSlider('pg','specGain',100);
+bindSlider('pp','specPow',1);
+bindSlider('tg','turbGain',100);
+bindSlider('bg','backGain',100);
 const panel = document.getElementById('panel'), ptog = document.getElementById('ptog');
 ptog.addEventListener('click', () => { panel.classList.toggle('hide'); ptog.classList.toggle('hide'); });
 const pclose = document.getElementById('pclose');
@@ -477,6 +513,14 @@ function loop(now){
   gl.uniform1f(uLamSlope, LP.lamSlope);
   gl.uniform1f(uLamBase, LP.lamBase);
   gl.uniform1f(uDisp, LP.disp);
+  gl.uniform1f(uCoreGain, LP.coreGain);
+  gl.uniform1f(uFocusGain, LP.focusGain);
+  gl.uniform1f(uSparkGain, LP.sparkGain);
+  gl.uniform1f(uRimGain, LP.rimGain);
+  gl.uniform1f(uSpecGain, LP.specGain);
+  gl.uniform1f(uSpecPow, LP.specPow);
+  gl.uniform1f(uTurbGain, LP.turbGain);
+  gl.uniform1f(uBackGain, LP.backGain);
 
   gl.clearColor(0.042,0.036,0.072,1);
   gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
