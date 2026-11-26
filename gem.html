@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v59 · 01:20</div>
+    <div id="ver">v60 · 01:23</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -392,14 +392,14 @@ void main(){
     // 面歪多少、往哪儿歪，采到的就是别处那一块，于是一块面板里看到的是别处的碎片。
     vec2 suv = gl_FragCoord.xy / uRes;
     vec3 Nv = normalize(vN);
-    vec2 refrOff = vec2(Nv.x, Nv.y) * 0.16;
+    vec2 refrOff = vec2(Nv.x, Nv.y) * 0.34;
     vec3 backC = vec3(
       texture2D(uBackTex, clamp(suv + refrOff*0.94, vec2(0.001), vec2(0.999))).r,
       texture2D(uBackTex, clamp(suv + refrOff,        vec2(0.001), vec2(0.999))).g,
       texture2D(uBackTex, clamp(suv + refrOff*1.06, vec2(0.001), vec2(0.999))).b
     );
     // 背面已经在 backC 里了，这里不再走半透明混合（否则又被屏幕背景吃一半）
-    vec3 mixC = mix(backC * 1.55, col * 1.30, 0.45);
+    vec3 mixC = mix(backC * 1.60, col * 1.10, 0.26);
     gl_FragColor=vec4(mixC, 1.0);
   }
 }`
