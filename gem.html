@@ -71,7 +71,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v29 · 20:57</div>
+    <div id="ver">v30 · 21:00</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -124,10 +124,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 <script>
 const cv=document.getElementById('c'),gl=cv.getContext('webgl',{antialias:true,alpha:false});
 if(!gl){document.body.innerHTML='<p style="padding:20px">这个浏览器不支持 WebGL</p>'}
-const vs=`attribute vec3 aPos;attribute vec3 aNrm;attribute float aFace;
+const vs=`attribute vec3 aPos;attribute vec3 aNrm;attribute float aFace;attribute vec3 aCen;
 uniform mat4 uMVP;uniform mat3 uNM;
-varying vec3 vN;varying vec3 vP;varying float vFace;
-void main(){vN=normalize(uNM*aNrm);vP=aPos;vFace=aFace;gl_Position=uMVP*vec4(aPos,1.0);}`;
+varying vec3 vN;varying vec3 vP;varying float vFace;varying vec3 vCen;varying vec3 vCen;
+void main(){vN=normalize(uNM*aNrm);vP=aPos;vFace=aFace;vCen=aCen;gl_Position=uMVP*vec4(aPos,1.0);}`;
 
 const fs=`precision highp float;
 uniform float uT;uniform float uTime;uniform vec2 uRes;uniform float uPass;
@@ -228,15 +228,15 @@ void main(){
   vec3 col = mix(trans, refl, F*0.85);
 
   // ---- 内部的亮（不跟着面走，这才是"透"）----
-  float core=exp(-length(vP*vec3(1.30,0.95,1.30)-vec3(0.0,0.05,0.0))*7.2);
+  float core=exp(-length(vCen*vec3(1.30,0.95,1.30)-vec3(0.0,0.05,0.0))*7.2);
   col+=vec3(0.56,0.50,0.95)*core*uCoreGain;
   // 底部聚焦（光从上面进来，在下面收成一团）
-  float focus=exp(-length(vP-vec3(-0.02,-0.22,0.02))*10.0);
+  float focus=exp(-length(vCen-vec3(-0.02,-0.22,0.02))*10.0);
   col+=vec3(0.58,0.64,1.0)*focus*uFocusGain;
   // 几粒内部碎光
-  col+=vec3(0.92,0.90,1.0)*exp(-length(vP-vec3(-0.09,0.13,0.06))*24.0)*0.85*uSparkGain;
-  col+=vec3(0.70,0.78,1.0)*exp(-length(vP-vec3(0.11,-0.05,-0.03))*28.0)*0.55*uSparkGain;
-  col+=vec3(0.80,0.74,1.0)*exp(-length(vP-vec3(0.04,0.20,-0.08))*30.0)*0.45*uSparkGain;
+  col+=vec3(0.92,0.90,1.0)*exp(-length(vCen-vec3(-0.09,0.13,0.06))*24.0)*0.85*uSparkGain;
+  col+=vec3(0.70,0.78,1.0)*exp(-length(vCen-vec3(0.11,-0.05,-0.03))*28.0)*0.55*uSparkGain;
+  col+=vec3(0.80,0.74,1.0)*exp(-length(vCen-vec3(0.04,0.20,-0.08))*30.0)*0.45*uSparkGain;
 
   // ---- 表面受光：方向感全靠这一层 ----
   vec3 Ls=normalize(vec3(-0.45,0.72,0.52));
@@ -262,8 +262,8 @@ void main(){
   col+=vec3(0.42,0.46,0.72)*rimF*uRimGain;
 
   // 浑浊：内部絮状
-  float nz=noise3(vP*5.0+vec3(0.0,uTime*0.04,0.0))*0.60
-          +noise3(vP*13.0)*0.40;
+  float nz=noise3(vCen*5.0+vec3(0.0,uTime*0.04,0.0))*0.60
+          +noise3(vCen*13.0)*0.40;
   vec3 muddy=vec3(0.46,0.42,0.50);
   col=mix(col,muddy,uT*nz*uTurbGain);
   col=mix(col,vec3(0.20,0.18,0.26),uT*uTurbK);
@@ -285,7 +285,7 @@ void main(){
     col=vec3(0.46,0.38,0.78)*lum;
     col+=vec3(0.35,0.28,0.63)*uBackBase;
     // 靠近中心更亮（芯的内侧）
-    float coreIn=exp(-length(vP)*3.4);
+    float coreIn=exp(-length(vCen)*3.4);
     col+=vec3(0.55,0.50,0.92)*coreIn*uBackCore;
     gl_FragColor=vec4(col,1.0);
   }else{
@@ -367,7 +367,7 @@ for(const [a,b,c] of IF){
   let nn=[n[0]+t1*TL, n[1]+t2*TL, n[2]+t3*TL];
   const nl=Math.hypot(...nn)||1; nn=nn.map(x=>x/nl);
 
-  for(const P of [A,B,C]) VP.push(P[0],P[1],P[2],nn[0],nn[1],nn[2],fi);
+  for(const P of [A,B,C]) VP.push(P[0],P[1],P[2],nn[0],nn[1],nn[2],fi,cen[0],cen[1],cen[2]);
   fi++;
 }
 
@@ -400,10 +400,11 @@ const texNorm = makeDataTex(FACE_NORMALS.length, faceNormBytes);
 const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);
 gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(VP),gl.STATIC_DRAW);
 const aPos=gl.getAttribLocation(pr,'aPos'),aNrm=gl.getAttribLocation(pr,'aNrm'),
-      aFace=gl.getAttribLocation(pr,'aFace');
-gl.enableVertexAttribArray(aPos);gl.vertexAttribPointer(aPos,3,gl.FLOAT,false,28,0);
-gl.enableVertexAttribArray(aNrm);gl.vertexAttribPointer(aNrm,3,gl.FLOAT,false,28,12);
-gl.enableVertexAttribArray(aFace);gl.vertexAttribPointer(aFace,1,gl.FLOAT,false,28,24);
+      aFace=gl.getAttribLocation(pr,'aFace'),aCen=gl.getAttribLocation(pr,'aCen');
+gl.enableVertexAttribArray(aPos);gl.vertexAttribPointer(aPos,3,gl.FLOAT,false,40,0);
+gl.enableVertexAttribArray(aNrm);gl.vertexAttribPointer(aNrm,3,gl.FLOAT,false,40,12);
+gl.enableVertexAttribArray(aFace);gl.vertexAttribPointer(aFace,1,gl.FLOAT,false,40,24);
+if(aCen>=0){gl.enableVertexAttribArray(aCen);gl.vertexAttribPointer(aCen,3,gl.FLOAT,false,40,28);}
 
 const uMVP=gl.getUniformLocation(pr,'uMVP'),uNM=gl.getUniformLocation(pr,'uNM'),
       uT=gl.getUniformLocation(pr,'uT'),uTime=gl.getUniformLocation(pr,'uTime'),
