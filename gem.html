@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v38 · 22:29</div>
+    <div id="ver">v39 · 22:57</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -234,6 +234,14 @@ void main(){
     if(dot(nr,nr)<1e-4) nr = nd;
     if(dot(nb,nb)<1e-4) nb = nd;
     through = vec3(env(nr).r, env(nd).g, env(nb).b);
+    // 【把后面的面画出来 · 2026-11-26 22:56】宝："前面的面像一扇窗，后面的面被切碎"
+    // 原来每一跳都采同一片 env，所以透过去是一片平色。
+    // 现在用"打到的那个面"当种子，给每一跳一个不同的亮度和色偏 ——
+    // 面是离散的，所以块与块之间天然是硬边，看起来就是"被前面切碎的一块一块"。
+    float fh = fract(sin(float(hit)*12.9898 + 78.233)*43758.5453);
+    float fh2 = fract(fh*7.13);
+    through *= (0.70 + 0.75*fh);
+    through = mix(through, through * vec3(1.12, 0.92, 1.20), fh2*0.6);
     innerLight += through * facing * decay;
     // 剩下的反射继续走
     dir = reflect(dir, Nh);
