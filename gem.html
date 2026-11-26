@@ -71,7 +71,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v28 · 20:54</div>
+    <div id="ver">v29 · 20:57</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -222,7 +222,7 @@ void main(){
     decay *= uDecay;
     cur = hit;
   }
-  vec3 trans = innerLight * vec3(0.62,0.50,0.88) * uInnerGain + env(refract(dir, -N, 1.55)) * 0.22;
+  vec3 trans = innerLight * vec3(0.72,0.46,1.05) * uInnerGain + env(refract(dir, -N, 1.55)) * 0.22;
   vec3 refl = env(reflect(-V,N));
 
   vec3 col = mix(trans, refl, F*0.85);
@@ -434,9 +434,9 @@ const uMVP=gl.getUniformLocation(pr,'uMVP'),uNM=gl.getUniformLocation(pr,'uNM'),
       uTurbK=gl.getUniformLocation(pr,'uTurbK'),
       uBackAux=gl.getUniformLocation(pr,'uBackAux');
 
-const LP = {pow:3.2, sharp:22, facePow:3.2, innerGain:0.38, decay:0.66, lamSlope:0.34, lamBase:0.30, disp:0.35,
+const LP = {pow:3.2, sharp:22, facePow:3.2, innerGain:0.38, decay:0.66, lamSlope:0.24, lamBase:0.16, disp:0.35,
             coreGain:0.16, focusGain:0.24, sparkGain:1.00, rimGain:0.16,
-            specGain:4.20, specPow:260, turbGain:0.85, backGain:1.55,
+            specGain:2.80, specPow:520, turbGain:0.85, backGain:1.55,
             darkK:0.14, topGain:0.28, backBase:0.09, backCore:0.55, turbK:0.30, backAux:0.42};
 // 【2026-11-26 修】默认值直接写死在 LP 里，滑杆只负责"改了就跟"。
 // 之前读 el.value 当初始化 → 某些环境下读回 0/空，参数全归零，画面就不动了。
