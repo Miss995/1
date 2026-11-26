@@ -71,7 +71,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v31 · 20:58</div>
+    <div id="ver">v32 · 21:06</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -215,14 +215,28 @@ void main(){
     vec3 Nh = faceNormalOf(hit);
     float facing = pow(clamp(dot(Nh, -dir), 0.0, 1.0), uFacePow);   // 光正撞上去才亮
     // 这一面透出来的光（穿过它往外看）
-    vec3 through = env(refract(dir, Nh, 1.55));
+    // 【真色散 · 2026-11-26】红绿蓝三个波长折射率不同，走三条路出来
+    // —— 边缘才有彩虹，不是加一层紫色
+    vec3 nd = refract(dir, Nh, 1.55);
+    if(dot(nd,nd)<1e-4) nd = dir;
+    vec3 through;
+    vec3 nr = refract(dir, Nh, 1.505);
+    vec3 nb = refract(dir, Nh, 1.600);
+    if(dot(nr,nr)<1e-4) nr = nd;
+    if(dot(nb,nb)<1e-4) nb = nd;
+    through = vec3(env(nr).r, env(nd).g, env(nb).b);
     innerLight += through * facing * decay;
     // 剩下的反射继续走
     dir = reflect(dir, Nh);
     decay *= uDecay;
     cur = hit;
   }
-  vec3 trans = innerLight * vec3(0.72,0.46,1.05) * uInnerGain + env(refract(dir, -N, 1.55)) * 0.22;
+  vec3 outd = refract(dir, -N, 1.55);
+  if(dot(outd,outd)<1e-4) outd = reflect(dir, -N);
+  vec3 outr = refract(dir, -N, 1.505); if(dot(outr,outr)<1e-4) outr = outd;
+  vec3 outb = refract(dir, -N, 1.600); if(dot(outb,outb)<1e-4) outb = outd;
+  vec3 exitCol = vec3(env(outr).r, env(outd).g, env(outb).b);
+  vec3 trans = innerLight * vec3(0.72,0.46,1.05) * uInnerGain + exitCol * 0.22;
   vec3 refl = env(reflect(-V,N));
 
   vec3 col = mix(trans, refl, F*0.85);
