@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v57 · 01:13</div>
+    <div id="ver">v58 · 01:15</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -372,7 +372,7 @@ void main(){
     vec3 N0=normalize(vN);                  // 原始法线（朝外）
     float dIn=max(dot(N0,normalize(vP+vec3(0.0,0.0001,0.0))),0.0);  // 朝中心的亮
     float dIn2=max(dot(N0,normalize(vec3(-0.45,0.72,0.5))),0.0);    // 另一侧的辅助
-    float lum=0.06 + uBackGain*pow(dIn,1.6) + uBackAux*dIn2;
+    float lum=0.16 + uBackGain*pow(dIn,1.6) + uBackAux*dIn2;
     col=vec3(0.46,0.38,0.78)*lum;
     col+=vec3(0.35,0.28,0.63)*uBackBase;
     // 靠近中心更亮（芯的内侧）
@@ -393,7 +393,7 @@ void main(){
       texture2D(uBackTex, clamp(suv + refrOff*1.06, vec2(0.001), vec2(0.999))).b
     );
     // 背面已经在 backC 里了，这里不再走半透明混合（否则又被屏幕背景吃一半）
-    vec3 mixC = mix(backC * 1.20, col, 0.45);
+    vec3 mixC = mix(backC * 1.55, col * 1.30, 0.45);
     gl_FragColor=vec4(mixC, 1.0);
   }
 }`
