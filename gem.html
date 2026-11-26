@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v66 · 01:54</div>
+    <div id="ver">v67 · 01:57</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -424,7 +424,14 @@ void main(){
     float lumC = dot(mixC, vec3(0.299,0.587,0.114));
     mixC = mix(vec3(lumC), mixC, 1.55);
     mixC *= vec3(0.92, 0.82, 1.12);
-    mixC *= 1.95;
+    mixC *= 1.55;
+    // 【加对比 · 2026-11-27 01:57】宝："真变成水晶鸡蛋了"
+    // 现在每块都差不多亮 —— 不是亮度不够，是对比不够。
+    // 亮的一档留着甚至再提，暗的一档压下去，中间调不动。
+    float Lc = dot(mixC, vec3(0.299,0.587,0.114));
+    float Ln = pow(clamp(Lc, 0.0, 1.6)/1.6, 1.75) * 1.75;
+    mixC *= (Ln / max(Lc, 0.02));
+    mixC = min(mixC, vec3(1.35));
     gl_FragColor=vec4(mixC, 1.0);
   }
 }`
