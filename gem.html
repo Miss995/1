@@ -52,7 +52,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 <div id="card">
   <canvas id="c"></canvas>
   <div class="ui">
-    <div id="ver">v14 · 18:59</div>
+    <div id="ver">v15 · 18:41</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -283,13 +283,38 @@ function resize(){const d=Math.min(devicePixelRatio||1,2);
  cv.width=cv.clientWidth*d;cv.height=cv.clientHeight*d;gl.viewport(0,0,cv.width,cv.height);}
 addEventListener('resize',resize);resize();
 
+// 【旋转控制 · 2026-11-26 宝："旋转速度看得好烦，能手动转吗"】
+// 自动转速 0.22 → 0.45（一圈从 28 秒缩到 14 秒），并支持拖动直接转。
+let spinSpeed = 0.45;
+let spinBase = 0, lastT = 0;
+let dragX = 0, dragY = 0;
+let dragging = false, lastX = 0, lastY = 0;
+
+cv.addEventListener('pointerdown', e => {
+  dragging = true; lastX = e.clientX; lastY = e.clientY;
+  try { cv.setPointerCapture(e.pointerId); } catch(_) {}
+});
+cv.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  dragY += (e.clientX - lastX) * 0.009;
+  dragX += (e.clientY - lastY) * 0.009;
+  dragX = Math.max(-1.1, Math.min(1.1, dragX));   // 上下夹住，别翻过去
+  lastX = e.clientX; lastY = e.clientY;
+});
+const endDrag = () => { dragging = false; };
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
+cv.addEventListener('pointerleave', endDrag);
+
 const t0=performance.now();
 function loop(now){
   const t=(now-t0)/1000;
+  const dt=t-lastT; lastT=t;
+  if(!dragging) spinBase += dt * spinSpeed;      // 拖的时候停自动转，手感才对
   const asp=cv.width/cv.height;
   const proj=persp(0.62,asp,0.1,10);
   const view=transZ(-2.05);
-  const model=mul(rotX(-0.14),rotY(t*0.22));
+  const model=mul(rotX(-0.14+dragX),rotY(spinBase+dragY));
   const mv=mul(view,model);
   const mvp=mul(proj,mv);
   gl.uniformMatrix4fv(uMVP,false,mvp);
