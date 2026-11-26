@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v41 · 23:20</div>
+    <div id="ver">v44 · 23:36</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -173,6 +173,15 @@ vec3 faceNormalOf(int i){
   return normalize(c * 2.0 - 1.0);
 }
 
+// 【后面的面 · 2026-11-26 23:35】宝："前面的面把后面的面切碎，是视觉上的"
+// 用折射后的方向铺一层三角网格：不同面板折射方向不同，格子位置就不同，
+// 于是每块面板里都能看到"另一套格子在动" —— 那正是隔着一层玻璃看到后面结构的样子。
+float triGrid(vec2 p){
+  float a = abs(fract(p.x) - 0.5);
+  float b = abs(fract(p.x*0.5 + p.y*0.866) - 0.5);
+  float c = abs(fract(p.x*0.5 - p.y*0.866) - 0.5);
+  return min(min(a,b),c);
+}
 float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
 float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
  float n=0.0;
@@ -257,6 +266,12 @@ void main(){
   vec3 outb = refract(dir, -N, 1.557); if(dot(outb,outb)<1e-4) outb = outd;
   vec3 exitCol = vec3(env(outr).r, env(outd).g, env(outb).b);
   vec3 trans = innerLight * vec3(0.72,0.46,1.05) * uInnerGain + exitCol * 0.22;
+  // 后面的面：把折射方向铺成三角网格，格线压暗 —— 看着像后面还有一层层结构
+  vec2 sph = vec2(atan(dir.z, dir.x)*0.1591549, asin(clamp(dir.y,-1.0,1.0))*0.3183099);
+  float gd = triGrid(sph * 30.0 + vec2(uTime*0.02, 0.0));
+  float gEdge = 1.0 - smoothstep(0.0, 0.05, gd);
+  innerLight *= (1.0 - gEdge * 0.60);
+
   vec3 refl = env(reflect(-V,N));
 
   vec3 col = mix(trans, refl, F*0.85);
