@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v44 · 23:36</div>
+    <div id="ver">v45 · 23:38</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -268,9 +268,14 @@ void main(){
   vec3 trans = innerLight * vec3(0.72,0.46,1.05) * uInnerGain + exitCol * 0.22;
   // 后面的面：把折射方向铺成三角网格，格线压暗 —— 看着像后面还有一层层结构
   vec2 sph = vec2(atan(dir.z, dir.x)*0.1591549, asin(clamp(dir.y,-1.0,1.0))*0.3183099);
-  float gd = triGrid(sph * 30.0 + vec2(uTime*0.02, 0.0));
-  float gEdge = 1.0 - smoothstep(0.0, 0.05, gd);
-  innerLight *= (1.0 - gEdge * 0.60);
+  vec2 gp = sph * 13.0;
+  float gd = triGrid(gp);
+  float gEdge = 1.0 - smoothstep(0.0, 0.16, gd);
+  innerLight *= (1.0 - gEdge * 0.85);
+  // 每一格给不同的亮度 —— 那才是"后面一块块的面"，不是纯色
+  float cid = floor(gp.x)*17.0 + floor(gp.y*1.1547)*31.0;
+  float ch = fract(sin(cid*12.9898)*43758.5453);
+  innerLight *= (0.62 + 0.85*ch);
 
   vec3 refl = env(reflect(-V,N));
 
