@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v60 · 01:23</div>
+    <div id="ver">v61 · 01:27</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -728,7 +728,12 @@ function loop(now){
 
   const n=VP.length/6;
 
-  // ---- pass 1：背面 → 画到 backTex 这张图上（2026-11-27 01:11 改的）----
+  // ---- pass 1：背面 → 画到 backTex 这张图上 ----
+  // 【2026-11-27 01:27 修】之前这里漏了一步：backTex 还绑在 TEXTURE2 上，
+  // 而这一趟又要往 backTex 里画 —— 等于"一边画一边采自己"，浏览器直接把这一趟丢了，
+  // 所以背面一直是空的、调背面亮度也没反应。画之前先把它解绑。
+  gl.activeTexture(gl.TEXTURE0 + 2);
+  gl.bindTexture(gl.TEXTURE_2D, null);
   if(backW !== cv.width || backH !== cv.height) setupBackTarget();
   gl.bindFramebuffer(gl.FRAMEBUFFER, backFB);
   gl.viewport(0,0,cv.width,cv.height);
