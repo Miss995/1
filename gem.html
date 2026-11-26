@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v58 · 01:15</div>
+    <div id="ver">v59 · 01:20</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -378,6 +378,12 @@ void main(){
     // 靠近中心更亮（芯的内侧）
     float coreIn=exp(-length(vCen)*3.4);
     col+=vec3(0.55,0.50,0.92)*coreIn*uBackCore;
+
+    // 【背面也该一块一块 · 2026-11-27 01:20】宝："看不见背面了"
+    // 背面原来只按"离中心多远"算亮，中间那圈全都差不多 → 透过去是一片均匀的紫，看不出结构。
+    // 这里给每一块背面一个自己的亮度，块与块之间才有差别。
+    float fb = fract(sin(dot(vCen, vec3(127.1, 311.7, 74.7)))*43758.5453);
+    col *= (0.45 + 1.35*fb);
 
     gl_FragColor=vec4(col,1.0);
   }else{
