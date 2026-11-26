@@ -31,6 +31,9 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1}
 #panel .pr div{display:flex;justify-content:space-between;margin-bottom:2px}
 #panel .pr b{color:#d8d2ff;font-weight:500}
 #panel input[type=range]{width:100%;height:14px;margin:0;accent-color:#a08cff}
+#cln{position:fixed;right:8px;bottom:50px;z-index:61;width:34px;height:34px;border-radius:50%;
+  border:none;background:rgba(30,24,56,.9);color:#d8d2ff;font-size:14px;line-height:1;
+  cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.5)}
 #ptog{position:fixed;right:8px;bottom:8px;z-index:61;width:34px;height:34px;border-radius:50%;
   background:rgba(60,45,110,.9);border:1px solid rgba(160,140,230,.5);color:#d8d2ff;
   font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center}
@@ -71,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v37 · 21:54</div>
+    <div id="ver">v38 · 22:29</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -89,6 +92,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
     </div>
   </div>
 </div>
+<button id="cln" title="只看宝石">◉</button>
 <button id="ptog">☰</button>
 <div id="panel" class="hide">
   <h4 style="display:flex;justify-content:space-between;align-items:center">
@@ -505,6 +509,19 @@ bindSlider('tk','turbK',100);
 bindSlider('ba','backAux',100);
 const panel = document.getElementById('panel'), ptog = document.getElementById('ptog');
 ptog.addEventListener('click', () => { panel.classList.toggle('hide'); ptog.classList.toggle('hide'); });
+// 【净屏按钮 · 2026-11-26 22:28】宝："能不能给我一个按钮把那个背景去掉"
+// 点一下把页面上那堆字（RAPPORT / ソウルジェム / 透明度 / 内包物…）全收起来，只剩宝石。
+const clnBtn = document.getElementById('cln');
+if(clnBtn){
+  clnBtn.addEventListener('click', () => {
+    const ui = document.querySelector('.ui');
+    if(!ui) return;
+    const hidden = ui.style.opacity === '0';
+    ui.style.transition = 'opacity .25s';
+    ui.style.opacity = hidden ? '1' : '0';
+    clnBtn.textContent = hidden ? '◉' : '○';
+  });
+}
 const pclose = document.getElementById('pclose');
 if(pclose) pclose.addEventListener('click', () => { panel.classList.add('hide'); ptog.classList.remove('hide'); });
 
