@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v49 · 00:10</div>
+    <div id="ver">v50 · 00:26</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -205,8 +205,14 @@ vec3 env(vec3 d){
   vec3 Ld=normalize(vec3(-0.55,0.62,0.55));
   c+=vec3(1.0,0.96,1.0)*pow(max(dot(d,Ld),0.0),uLightSharp)*uLightPow;
   c+=vec3(0.14,0.09,0.27)*pow(max(dot(d,normalize(vec3(0.62,0.30,0.42))),0.0),6.0);
+  // 【环境里的结构 · 2026-11-27 00:26】宝："透过前面看到后面被切碎"
+  // 原来这里有个格子，但强度只有 0.055，几乎看不见 —— 折射再怎么算也采不出差别。
+  // 加强格子 + 加几道低频暗纹，让"透过去"这件事有参照物。
   float grid=abs(fract(d.x*7.0)-0.5)+abs(fract(d.y*7.0)-0.5);
-  c+=vec3(0.055,0.045,0.110)*(1.0-smoothstep(0.0,0.06,grid));
+  c+=vec3(0.16,0.14,0.30)*(1.0-smoothstep(0.0,0.05,grid));
+  // 低频暗纹（模糊的斜带，折射一扭就能看出方向变了）
+  float band = sin(d.x*4.2 + d.y*3.1 + d.z*2.4);
+  c *= (0.80 + 0.28 * smoothstep(-0.4, 0.8, band));
   return c;
 }
 
