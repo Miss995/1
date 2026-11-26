@@ -66,7 +66,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 <div id="card">
   <canvas id="c"></canvas>
   <div class="ui">
-    <div id="ver">v24 · 19:57</div>
+    <div id="ver">v25 · 20:00</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -114,6 +114,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <div class="pr"><div><span>背面基础</span><b id="v_bb">0.09</b></div><input id="s_bb" type="range" min="0" max="100" value="9"></div>
   <div class="pr"><div><span>背面芯亮</span><b id="v_bc">0.55</b></div><input id="s_bc" type="range" min="0" max="200" value="55"></div>
   <div class="pr"><div><span>浑浊灰层</span><b id="v_tk">0.22</b></div><input id="s_tk" type="range" min="0" max="100" value="22"></div>
+  <div class="pr"><div><span>背面辅光</span><b id="v_ba">0.42</b></div><input id="s_ba" type="range" min="0" max="200" value="42"></div>
 </div>
 <script>
 const cv=document.getElementById('c'),gl=cv.getContext('webgl',{antialias:true,alpha:false});
@@ -148,6 +149,7 @@ uniform float uTopGain;
 uniform float uBackBase;
 uniform float uBackCore;
 uniform float uTurbK;
+uniform float uBackAux;
 varying vec3 vN;varying vec3 vP;varying float vFace;
 
 const float FACE_N = 80.0;
@@ -274,7 +276,7 @@ void main(){
     vec3 N0=normalize(vN);                  // 原始法线（朝外）
     float dIn=max(dot(N0,normalize(vP+vec3(0.0,0.0001,0.0))),0.0);  // 朝中心的亮
     float dIn2=max(dot(N0,normalize(vec3(-0.45,0.72,0.5))),0.0);    // 另一侧的辅助
-    float lum=0.06 + uBackGain*pow(dIn,1.6) + 0.42*dIn2;
+    float lum=0.06 + uBackGain*pow(dIn,1.6) + uBackAux*dIn2;
     col=vec3(0.46,0.38,0.78)*lum;
     col+=vec3(0.35,0.28,0.63)*uBackBase;
     // 靠近中心更亮（芯的内侧）
@@ -412,12 +414,13 @@ const uMVP=gl.getUniformLocation(pr,'uMVP'),uNM=gl.getUniformLocation(pr,'uNM'),
       uTopGain=gl.getUniformLocation(pr,'uTopGain'),
       uBackBase=gl.getUniformLocation(pr,'uBackBase'),
       uBackCore=gl.getUniformLocation(pr,'uBackCore'),
-      uTurbK=gl.getUniformLocation(pr,'uTurbK');
+      uTurbK=gl.getUniformLocation(pr,'uTurbK'),
+      uBackAux=gl.getUniformLocation(pr,'uBackAux');
 
 const LP = {pow:4.6, sharp:22, facePow:3.2, innerGain:0.55, decay:0.66, lamSlope:0.50, lamBase:0.55, disp:0.35,
             coreGain:0.26, focusGain:0.40, sparkGain:1.00, rimGain:0.16,
             specGain:2.40, specPow:140, turbGain:0.85, backGain:1.55,
-            darkK:0.14, topGain:0.28, backBase:0.09, backCore:0.55, turbK:0.22};
+            darkK:0.14, topGain:0.28, backBase:0.09, backCore:0.55, turbK:0.22, backAux:0.42};
 // 【2026-11-26 修】默认值直接写死在 LP 里，滑杆只负责"改了就跟"。
 // 之前读 el.value 当初始化 → 某些环境下读回 0/空，参数全归零，画面就不动了。
 function bindSlider(id, key, div){
@@ -453,6 +456,7 @@ bindSlider('tp','topGain',100);
 bindSlider('bb','backBase',100);
 bindSlider('bc','backCore',100);
 bindSlider('tk','turbK',100);
+bindSlider('ba','backAux',100);
 const panel = document.getElementById('panel'), ptog = document.getElementById('ptog');
 ptog.addEventListener('click', () => { panel.classList.toggle('hide'); ptog.classList.toggle('hide'); });
 const pclose = document.getElementById('pclose');
@@ -547,6 +551,7 @@ function loop(now){
   gl.uniform1f(uBackBase, LP.backBase);
   gl.uniform1f(uBackCore, LP.backCore);
   gl.uniform1f(uTurbK, LP.turbK);
+  gl.uniform1f(uBackAux, LP.backAux);
 
   gl.clearColor(0.042,0.036,0.072,1);
   gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
