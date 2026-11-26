@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v52 · 00:58</div>
+    <div id="ver">v53 · 01:05</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -377,6 +377,18 @@ void main(){
     // 靠近中心更亮（芯的内侧）
     float coreIn=exp(-length(vCen)*3.4);
     col+=vec3(0.55,0.50,0.92)*coreIn*uBackCore;
+
+    // 【零碎 · 2026-11-27 01:05】宝："真宝石从前往后看，后面的结构是零碎的"
+    // 这一段才是"后面的结构"真正的产地（v8 18:21 两遍绘制：先画背面再画半透明正面）。
+    // 现在一个面就是一个纯色块 → 看起来整整齐齐一大片。
+    // 在面内部再切几刀：按世界坐标铺一层细碎的小格，每格亮度不同、交界压暗。
+    vec2 qq = vec2(vP.x*11.0 + vP.z*4.0, vP.y*13.0 - vP.z*5.0);
+    float qg = triGrid(qq);
+    float qe = 1.0 - smoothstep(0.0, 0.075, qg);
+    float cid = floor(qq.x*1.6)*13.0 + floor(qq.y*1.6)*29.0;
+    float chh = fract(sin(cid*12.9898)*43758.5453);
+    col *= (0.34 + 1.45*chh);          // 每小块亮度差很大 —— 碎
+    col *= (1.0 - qe*0.72);            // 小块之间压暗，像折角
     gl_FragColor=vec4(col,1.0);
   }else{
     // 正面的面：半透明，后面的面从这儿透上来
