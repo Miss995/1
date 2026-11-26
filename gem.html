@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v70 · 02:22</div>
+    <div id="ver">v71 · 03:05</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -426,7 +426,9 @@ void main(){
     // 现在是：拉饱和保留，但整体提亮 —— 眼睛受不了的暗先救回来。
     float lumC = dot(mixC, vec3(0.299,0.587,0.114));
     mixC = mix(vec3(lumC), mixC, 1.55);
-    mixC *= vec3(0.92, 0.82, 1.12);
+    // 【偏紫 · 2026-11-27 03:05】宝："整体偏粉了，不是紫水晶那种深紫"
+    // 提亮把红绿一起拉高、高光又叠白 → 变粉。把红压下去、蓝紫抬起来。
+    mixC *= vec3(0.80, 0.74, 1.22);
     mixC *= 2.15;
     // 【加对比 · 2026-11-27 01:57】宝："真变成水晶鸡蛋了"
     // 现在每块都差不多亮 —— 不是亮度不够，是对比不够。
