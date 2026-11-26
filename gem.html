@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v46 · 23:43</div>
+    <div id="ver">v47 · 23:48</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -265,17 +265,19 @@ void main(){
   vec3 outr = refract(dir, -N, 1.543); if(dot(outr,outr)<1e-4) outr = outd;
   vec3 outb = refract(dir, -N, 1.557); if(dot(outb,outb)<1e-4) outb = outd;
   vec3 exitCol = vec3(env(outr).r, env(outd).g, env(outb).b);
-  // 后面的面：把折射方向铺成三角网格，格线压暗 —— 看着像后面还有一层层结构
-  vec2 sph = vec2(atan(dir.z, dir.x)*0.1591549, asin(clamp(dir.y,-1.0,1.0))*0.3183099);
-  vec2 gp = sph * 13.0;
-  float gd = triGrid(gp);
-  float gEdge = 1.0 - smoothstep(0.0, 0.16, gd);
-  innerLight *= (1.0 - gEdge * 0.85);
-  // 每一格给不同的亮度 —— 那才是"后面一块块的面"，不是纯色
-  float cid = floor(gp.x)*17.0 + floor(gp.y*1.1547)*31.0;
-  float ch = fract(sin(cid*12.9898)*43758.5453);
-  innerLight *= (0.62 + 0.85*ch);
   vec3 trans = innerLight * vec3(0.72,0.46,1.05) * uInnerGain + exitCol * 0.22;
+
+  // 【后面的面 · 2026-11-26 23:47】宝："前面的面把后面的面切碎，是视觉上的"
+  // 用折射方向的平面投影铺三角网格（不用球面坐标，正前方会跳变），
+  // 直接乘在"透射"结果上 —— 之前乘 innerLight，被后面的环境色和反射稀释掉了。
+  vec2 gp = dir.xz * 9.0 + dir.y * 2.0;
+  float gd = triGrid(gp);
+  float gEdge = 1.0 - smoothstep(0.0, 0.10, gd);
+  trans *= (1.0 - gEdge * 0.75);
+  // 每一格不同亮度 —— 那才是"后面一块块的面"，不是纯色
+  float cid = floor(gp.x*1.7) * 17.0 + floor(gp.y*1.7) * 31.0;
+  float ch = fract(sin(cid*12.9898)*43758.5453);
+  trans *= (0.55 + 0.95*ch);
 
   vec3 refl = env(reflect(-V,N));
 
