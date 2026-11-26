@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v62 · 01:33</div>
+    <div id="ver">v63 · 01:35</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -401,7 +401,10 @@ void main(){
       texture2D(uBackTex, clamp(suv + refrOff*1.06, vec2(0.001), vec2(0.999))).b
     );
     // 背面已经在 backC 里了，这里不再走半透明混合（否则又被屏幕背景吃一半）
-    vec3 mixC = mix(backC * 1.60, col * 1.10, 0.26);
+    // 不是按比例混，是相加：表面自己的反光 + 透过来的光
+    // （按比例混的话，背面一黑正面就跟着黑，看着像一半瞎了）
+    vec3 mixC = backC * 1.35 + col * 1.45;
+    mixC = mixC / (1.0 + mixC * 0.22);   // 软压缩，免得过曝
     gl_FragColor=vec4(mixC, 1.0);
   }
 }`
