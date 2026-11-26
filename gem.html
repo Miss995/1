@@ -175,7 +175,7 @@ void main(){
   col*=0.86+0.14*ct;
 
   // 内部一点点色散（别太花，KTV 感是从这来的）
-  float dsp=sin(dot(R2,vec3(9.0,7.0,11.0))+uTime*0.4);
+  float dsp=sin(dot(dir,vec3(9.0,7.0,11.0))+uTime*0.4);
   col+=vec3(0.05,0.01,0.08)*dsp*0.35;
 
   // 锐高光
