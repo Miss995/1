@@ -17,6 +17,20 @@ html,body{height:100%;background:#08070d;overflow:hidden;
   background-image:radial-gradient(rgba(255,255,255,.055) 1px,transparent 1px);
   background-size:3px 3px;mix-blend-mode:screen;opacity:.9}
 canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#panel{position:fixed;right:8px;bottom:8px;width:172px;background:rgba(14,10,26,.92);
+  border:1px solid rgba(150,130,220,.28);border-radius:8px;padding:8px 9px;z-index:60;
+  font-size:9px;color:#b9b1de;backdrop-filter:blur(8px);
+  max-height:78vh;overflow:auto;-webkit-overflow-scrolling:touch}
+#panel.hide{display:none}
+#panel h4{margin:0 0 6px;font-size:9px;letter-spacing:.1em;color:#8b83b8;font-weight:400}
+#panel .pr{margin:5px 0 7px}
+#panel .pr div{display:flex;justify-content:space-between;margin-bottom:2px}
+#panel .pr b{color:#d8d2ff;font-weight:500}
+#panel input[type=range]{width:100%;height:14px;margin:0;accent-color:#a08cff}
+#ptog{position:fixed;right:8px;bottom:8px;z-index:61;width:34px;height:34px;border-radius:50%;
+  background:rgba(60,45,110,.9);border:1px solid rgba(160,140,230,.5);color:#d8d2ff;
+  font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center}
+#ptog.hide{display:none}
 .ui{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;
   padding:18px 20px 16px}
 .top{text-align:center;letter-spacing:.42em;font-size:9px;color:#8b83b8;
@@ -52,7 +66,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 <div id="card">
   <canvas id="c"></canvas>
   <div class="ui">
-    <div id="ver">v19 · 19:17</div>
+    <div id="ver">v20 · 19:21</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -80,8 +94,16 @@ void main(){vN=normalize(uNM*aNrm);vP=aPos;vFace=aFace;gl_Position=uMVP*vec4(aPo
 
 const fs=`precision highp float;
 uniform float uT;uniform float uTime;uniform vec2 uRes;uniform float uPass;
-uniform sampler2D uFaceTex;    // 80x1：R = 下一面索引 / 255
-uniform sampler2D uNormTex;    // 80x1：RGB = 面法线（编码到 0..1）
+uniform sampler2D uFaceTex;
+uniform sampler2D uNormTex;
+uniform float uLightPow;
+uniform float uLightSharp;
+uniform float uFacePow;
+uniform float uInnerGain;
+uniform float uDecay;
+uniform float uLamSlope;
+uniform float uLamBase;
+uniform float uDisp;
 varying vec3 vN;varying vec3 vP;varying float vFace;
 
 const float FACE_N = 80.0;
@@ -111,7 +133,7 @@ vec3 env(vec3 d){
   vec3 ground=vec3(0.020,0.018,0.052);
   vec3 c=mix(ground,sky,smoothstep(-0.32,0.26,h));
   vec3 Ld=normalize(vec3(-0.55,0.62,0.55));
-  c+=vec3(1.0,0.96,1.0)*pow(max(dot(d,Ld),0.0),22.0)*4.6;
+  c+=vec3(1.0,0.96,1.0)*pow(max(dot(d,Ld),0.0),uLightSharp)*uLightPow;
   c+=vec3(0.14,0.09,0.27)*pow(max(dot(d,normalize(vec3(0.62,0.30,0.42))),0.0),6.0);
   float grid=abs(fract(d.x*7.0)-0.5)+abs(fract(d.y*7.0)-0.5);
   c+=vec3(0.055,0.045,0.110)*(1.0-smoothstep(0.0,0.06,grid));
@@ -140,16 +162,16 @@ void main(){
   for(int s = 0; s < 3; s++){
     int hit = faceNext(cur);
     vec3 Nh = faceNormalOf(hit);
-    float facing = pow(clamp(dot(Nh, -dir), 0.0, 1.0), 3.2);   // 光正撞上去才亮
+    float facing = pow(clamp(dot(Nh, -dir), 0.0, 1.0), uFacePow);   // 光正撞上去才亮
     // 这一面透出来的光（穿过它往外看）
     vec3 through = env(refract(dir, Nh, 1.55));
     innerLight += through * facing * decay;
     // 剩下的反射继续走
     dir = reflect(dir, Nh);
-    decay *= 0.66;
+    decay *= uDecay;
     cur = hit;
   }
-  vec3 trans = innerLight * vec3(0.62,0.50,0.88) * 0.55 + env(refract(dir, -N, 1.55)) * 0.22;
+  vec3 trans = innerLight * vec3(0.62,0.50,0.88) * uInnerGain + env(refract(dir, -N, 1.55)) * 0.22;
   vec3 refl = env(reflect(-V,N));
 
   vec3 col = mix(trans, refl, F*0.85);
@@ -168,7 +190,7 @@ void main(){
   // ---- 表面受光：方向感全靠这一层 ----
   vec3 Ls=normalize(vec3(-0.45,0.72,0.52));
   float lam=max(dot(N,Ls),0.0);
-  col*=0.55+0.50*lam;
+  col*=uLamBase+uLamSlope*lam;
   // 顶端一线被照亮
   col+=vec3(0.30,0.26,0.50)*pow(lam,4.0)*0.28;
   // 背光侧压暗，但要留住内部的亮
@@ -176,7 +198,7 @@ void main(){
 
   // 内部一点点色散（别太花，KTV 感是从这来的）
   float dsp=sin(dot(dir,vec3(9.0,7.0,11.0))+uTime*0.4);
-  col+=vec3(0.05,0.01,0.08)*dsp*0.35;
+  col+=vec3(0.05,0.01,0.08)*dsp*uDisp;
 
   // 锐高光
   vec3 Ld=normalize(vec3(-0.55,0.62,0.55));
@@ -325,7 +347,33 @@ const uMVP=gl.getUniformLocation(pr,'uMVP'),uNM=gl.getUniformLocation(pr,'uNM'),
       uRes=gl.getUniformLocation(pr,'uRes'),
       uPass=gl.getUniformLocation(pr,'uPass'),
       uFaceTex=gl.getUniformLocation(pr,'uFaceTex'),
-      uNormTex=gl.getUniformLocation(pr,'uNormTex');
+      uNormTex=gl.getUniformLocation(pr,'uNormTex'),
+      uLightPow=gl.getUniformLocation(pr,'uLightPow'),
+      uLightSharp=gl.getUniformLocation(pr,'uLightSharp'),
+      uFacePow=gl.getUniformLocation(pr,'uFacePow'),
+      uInnerGain=gl.getUniformLocation(pr,'uInnerGain'),
+      uDecay=gl.getUniformLocation(pr,'uDecay'),
+      uLamSlope=gl.getUniformLocation(pr,'uLamSlope'),
+      uLamBase=gl.getUniformLocation(pr,'uLamBase'),
+      uDisp=gl.getUniformLocation(pr,'uDisp');
+
+const LP = {pow:4.6, sharp:22, facePow:3.2, innerGain:0.55, decay:0.66, lamSlope:0.50, lamBase:0.55, disp:0.35};
+function bindSlider(id, key, div){
+  const el = document.getElementById('s_'+id), vb = document.getElementById('v_'+id);
+  if(!el) return;
+  const upd = () => { LP[key] = el.value / div; if(vb) vb.textContent = LP[key].toFixed(2); };
+  el.addEventListener('input', upd); upd();
+}
+bindSlider('lp','pow',10);
+bindSlider('ls','sharp',1);
+bindSlider('fp','facePow',10);
+bindSlider('ig','innerGain',100);
+bindSlider('dc','decay',100);
+bindSlider('lm','lamSlope',100);
+bindSlider('lb','lamBase',100);
+bindSlider('dp','disp',100);
+const panel = document.getElementById('panel'), ptog = document.getElementById('ptog');
+ptog.addEventListener('click', () => { panel.classList.toggle('hide'); ptog.classList.toggle('hide'); });
 
 gl.enable(gl.DEPTH_TEST);
 
@@ -395,6 +443,14 @@ function loop(now){
   gl.activeTexture(gl.TEXTURE1);
   gl.bindTexture(gl.TEXTURE_2D, texNorm);
   gl.uniform1i(uNormTex, 1);
+  gl.uniform1f(uLightPow, LP.pow);
+  gl.uniform1f(uLightSharp, LP.sharp);
+  gl.uniform1f(uFacePow, LP.facePow);
+  gl.uniform1f(uInnerGain, LP.innerGain);
+  gl.uniform1f(uDecay, LP.decay);
+  gl.uniform1f(uLamSlope, LP.lamSlope);
+  gl.uniform1f(uLamBase, LP.lamBase);
+  gl.uniform1f(uDisp, LP.disp);
 
   gl.clearColor(0.042,0.036,0.072,1);
   gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
@@ -422,5 +478,17 @@ function loop(now){
 }
 requestAnimationFrame(loop);
 </script>
+<button id="ptog">☰</button>
+<div id="panel" class="hide">
+  <h4>LIGHT · 光参数</h4>
+  <div class="pr"><div><span>主光强度</span><b id="v_lp">4.60</b></div><input id="s_lp" type="range" min="0" max="120" value="46"></div>
+  <div class="pr"><div><span>主光锐度</span><b id="v_ls">22.00</b></div><input id="s_ls" type="range" min="2" max="120" value="22"></div>
+  <div class="pr"><div><span>面朝向幂</span><b id="v_fp">3.20</b></div><input id="s_fp" type="range" min="2" max="80" value="32"></div>
+  <div class="pr"><div><span>内部总量</span><b id="v_ig">0.55</b></div><input id="s_ig" type="range" min="0" max="150" value="55"></div>
+  <div class="pr"><div><span>每跳衰减</span><b id="v_dc">0.66</b></div><input id="s_dc" type="range" min="0" max="100" value="66"></div>
+  <div class="pr"><div><span>受光斜率</span><b id="v_lm">0.50</b></div><input id="s_lm" type="range" min="0" max="200" value="50"></div>
+  <div class="pr"><div><span>受光底数</span><b id="v_lb">0.55</b></div><input id="s_lb" type="range" min="0" max="150" value="55"></div>
+  <div class="pr"><div><span>色散</span><b id="v_dp">0.35</b></div><input id="s_dp" type="range" min="0" max="200" value="35"></div>
+</div>
 </body>
 </html>
