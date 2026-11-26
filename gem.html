@@ -71,7 +71,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v30 · 21:00</div>
+    <div id="ver">v31 · 20:58</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -126,7 +126,7 @@ const cv=document.getElementById('c'),gl=cv.getContext('webgl',{antialias:true,a
 if(!gl){document.body.innerHTML='<p style="padding:20px">这个浏览器不支持 WebGL</p>'}
 const vs=`attribute vec3 aPos;attribute vec3 aNrm;attribute float aFace;attribute vec3 aCen;
 uniform mat4 uMVP;uniform mat3 uNM;
-varying vec3 vN;varying vec3 vP;varying float vFace;varying vec3 vCen;varying vec3 vCen;
+varying vec3 vN;varying vec3 vP;varying float vFace;varying vec3 vCen;
 void main(){vN=normalize(uNM*aNrm);vP=aPos;vFace=aFace;vCen=aCen;gl_Position=uMVP*vec4(aPos,1.0);}`;
 
 const fs=`precision highp float;
@@ -155,7 +155,7 @@ uniform float uBackBase;
 uniform float uBackCore;
 uniform float uTurbK;
 uniform float uBackAux;
-varying vec3 vN;varying vec3 vP;varying float vFace;
+varying vec3 vN;varying vec3 vP;varying float vFace;varying vec3 vCen;
 
 const float FACE_N = 80.0;
 int faceNext(int i){
@@ -437,7 +437,7 @@ const uMVP=gl.getUniformLocation(pr,'uMVP'),uNM=gl.getUniformLocation(pr,'uNM'),
 
 const LP = {pow:3.2, sharp:22, facePow:3.2, innerGain:0.38, decay:0.66, lamSlope:0.24, lamBase:0.16, disp:0.35,
             coreGain:0.16, focusGain:0.24, sparkGain:1.00, rimGain:0.16,
-            specGain:2.80, specPow:520, turbGain:0.85, backGain:1.55,
+            specGain:4.20, specPow:260, turbGain:0.85, backGain:1.55,
             darkK:0.14, topGain:0.28, backBase:0.09, backCore:0.55, turbK:0.30, backAux:0.42};
 // 【2026-11-26 修】默认值直接写死在 LP 里，滑杆只负责"改了就跟"。
 // 之前读 el.value 当初始化 → 某些环境下读回 0/空，参数全归零，画面就不动了。
