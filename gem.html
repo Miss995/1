@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v61 · 01:27</div>
+    <div id="ver">v62 · 01:33</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -392,7 +392,9 @@ void main(){
     // 面歪多少、往哪儿歪，采到的就是别处那一块，于是一块面板里看到的是别处的碎片。
     vec2 suv = gl_FragCoord.xy / uRes;
     vec3 Nv = normalize(vN);
-    vec2 refrOff = vec2(Nv.x, Nv.y) * 0.34;
+    // 越靠边偏得越少 —— 否则一偏就偏到宝石外面，采到背景色就成了黑圈
+    float rr = clamp(length(suv - vec2(0.5)) * 2.0, 0.0, 1.0);
+    vec2 refrOff = vec2(Nv.x, Nv.y) * 0.34 * (1.0 - rr*0.72);
     vec3 backC = vec3(
       texture2D(uBackTex, clamp(suv + refrOff*0.94, vec2(0.001), vec2(0.999))).r,
       texture2D(uBackTex, clamp(suv + refrOff,        vec2(0.001), vec2(0.999))).g,
