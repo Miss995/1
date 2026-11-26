@@ -71,7 +71,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v33 · 21:21</div>
+    <div id="ver">v34 · 21:28</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -281,6 +281,15 @@ void main(){
   vec3 muddy=vec3(0.46,0.42,0.50);
   col=mix(col,muddy,uT*nz*uTurbGain);
   col=mix(col,vec3(0.20,0.18,0.26),uT*uTurbK);
+
+  // 【色调曲线 · 2026-11-26】宝："没有实感"
+  // 实拍紫水晶的跨度是"电光紫→近黑"，咱家全卡在中间亮度。
+  // 这一步把中间调往下压、两端拉开：亮的更亮，暗的直接沉下去。
+  col = clamp(col, 0.0, 1.0);
+  col = col * col * (3.0 - 2.0 * col);          // S 曲线（中间压、两端翘）
+  float lumC = dot(col, vec3(0.2126,0.7152,0.0722));
+  col = mix(vec3(lumC), col, 1.45);              // 提饱和（真紫水晶紫得很纯）
+  col = pow(col, vec3(1.30));                    // 整体压暗一档
 
   // 背景（跟 env 的地平线对上，宝石才像浮在其中）
   vec3 bg=vec3(0.042,0.036,0.072);
