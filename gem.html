@@ -66,7 +66,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 <div id="card">
   <canvas id="c"></canvas>
   <div class="ui">
-    <div id="ver">v21 · 19:32</div>
+    <div id="ver">v22 · 19:35</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -86,7 +86,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 </div>
 <button id="ptog">☰</button>
 <div id="panel" class="hide">
-  <h4>LIGHT · 光参数</h4>
+  <h4 style="display:flex;justify-content:space-between;align-items:center">
+    <span>LIGHT · 光参数</span>
+    <span id="pclose" style="cursor:pointer;font-size:14px;color:#d8d2ff;padding:0 4px">×</span>
+  </h4>
   <div id="dbg" style="font-size:8px;color:#6d659a;margin-bottom:4px;word-break:break-all">—</div>
   <div class="pr"><div><span>主光强度</span><b id="v_lp">4.60</b></div><input id="s_lp" type="range" min="0" max="120" value="46"></div>
   <div class="pr"><div><span>主光锐度</span><b id="v_ls">22.00</b></div><input id="s_ls" type="range" min="2" max="120" value="22"></div>
@@ -395,6 +398,8 @@ bindSlider('lb','lamBase',100);
 bindSlider('dp','disp',100);
 const panel = document.getElementById('panel'), ptog = document.getElementById('ptog');
 ptog.addEventListener('click', () => { panel.classList.toggle('hide'); ptog.classList.toggle('hide'); });
+const pclose = document.getElementById('pclose');
+if(pclose) pclose.addEventListener('click', () => { panel.classList.add('hide'); ptog.classList.remove('hide'); });
 
 gl.enable(gl.DEPTH_TEST);
 
@@ -507,8 +512,12 @@ function dbgUpdate(){
     ig: uInnerGain !== null, dc: uDecay !== null, lm: uLamSlope !== null,
     lb: uLamBase !== null, dp: uDisp !== null
   };
-  d.textContent = 'uniform ok:' + Object.values(ok).filter(Boolean).length + '/8 · '
-    + 'pow=' + LP.pow.toFixed(2) + ' base=' + LP.lamBase.toFixed(2);
+  const elp = document.getElementById('s_lp'), ellb = document.getElementById('s_lb');
+  d.textContent = 'ok:' + Object.values(ok).filter(Boolean).length + '/8'
+    + ' LP.pow=' + LP.pow.toFixed(2)
+    + ' LP.lb=' + LP.lamBase.toFixed(2)
+    + ' | el_lp=' + (elp ? elp.value : 'X')
+    + ' el_lb=' + (ellb ? ellb.value : 'X');
 }
 requestAnimationFrame(loop);
 </script>
