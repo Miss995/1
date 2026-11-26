@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v71 · 03:05</div>
+    <div id="ver">v72 · 03:18</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -307,7 +307,10 @@ void main(){
 
   vec3 refl = env(reflect(-V,N));
 
-  vec3 col = mix(trans, refl, F*0.85);
+  // 【不是双层 · 2026-11-27 03:18】宝："后面好像变成双层了，折射前后的样子都显示出来了"
+  // 因为 col 里本来就含着 trans（光路算出来的透过色），外面又叠了一层"偏移采样到的背面"
+  // → 透过的东西画了两遍。这里把 col 里的透过分量压到三成，透的部分交给采样那一遍。
+  vec3 col = mix(trans * 0.32, refl, F*0.85);
 
   // ---- 内部的亮（不跟着面走，这才是"透"）----
   float core=exp(-length(vCen*vec3(1.30,0.95,1.30)-vec3(0.0,0.05,0.0))*7.2);
