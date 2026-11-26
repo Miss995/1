@@ -66,7 +66,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 <div id="card">
   <canvas id="c"></canvas>
   <div class="ui">
-    <div id="ver">v23 · 19:46</div>
+    <div id="ver">v24 · 19:57</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -109,6 +109,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <div class="pr"><div><span>锐高光锐度</span><b id="v_pp">140</b></div><input id="s_pp" type="range" min="2" max="300" value="140"></div>
   <div class="pr"><div><span>浑浊强度</span><b id="v_tg">0.85</b></div><input id="s_tg" type="range" min="0" max="200" value="85"></div>
   <div class="pr"><div><span>背面光</span><b id="v_bg">1.55</b></div><input id="s_bg" type="range" min="0" max="400" value="155"></div>
+  <div class="pr"><div><span>暗面压暗</span><b id="v_dk">0.14</b></div><input id="s_dk" type="range" min="0" max="100" value="14"></div>
+  <div class="pr"><div><span>顶端照亮</span><b id="v_tp">0.28</b></div><input id="s_tp" type="range" min="0" max="200" value="28"></div>
+  <div class="pr"><div><span>背面基础</span><b id="v_bb">0.09</b></div><input id="s_bb" type="range" min="0" max="100" value="9"></div>
+  <div class="pr"><div><span>背面芯亮</span><b id="v_bc">0.55</b></div><input id="s_bc" type="range" min="0" max="200" value="55"></div>
+  <div class="pr"><div><span>浑浊灰层</span><b id="v_tk">0.22</b></div><input id="s_tk" type="range" min="0" max="100" value="22"></div>
 </div>
 <script>
 const cv=document.getElementById('c'),gl=cv.getContext('webgl',{antialias:true,alpha:false});
@@ -138,6 +143,11 @@ uniform float uSpecGain;
 uniform float uSpecPow;
 uniform float uTurbGain;
 uniform float uBackGain;
+uniform float uDarkK;
+uniform float uTopGain;
+uniform float uBackBase;
+uniform float uBackCore;
+uniform float uTurbK;
 varying vec3 vN;varying vec3 vP;varying float vFace;
 
 const float FACE_N = 80.0;
@@ -226,9 +236,9 @@ void main(){
   float lam=max(dot(N,Ls),0.0);
   col*=uLamBase+uLamSlope*lam;
   // 顶端一线被照亮
-  col+=vec3(0.30,0.26,0.50)*pow(lam,4.0)*0.28;
+  col+=vec3(0.30,0.26,0.50)*pow(lam,4.0)*uTopGain;
   // 背光侧压暗，但要留住内部的亮
-  col*=0.86+0.14*ct;
+  col*=0.86+uDarkK*ct;
 
   // 内部一点点色散（别太花，KTV 感是从这来的）
   float dsp=sin(dot(dir,vec3(9.0,7.0,11.0))+uTime*0.4);
@@ -249,7 +259,7 @@ void main(){
           +noise3(vP*13.0)*0.40;
   vec3 muddy=vec3(0.46,0.42,0.50);
   col=mix(col,muddy,uT*nz*uTurbGain);
-  col=mix(col,vec3(0.20,0.18,0.26),uT*0.22);
+  col=mix(col,vec3(0.20,0.18,0.26),uT*uTurbK);
 
   // 背景（跟 env 的地平线对上，宝石才像浮在其中）
   vec3 bg=vec3(0.042,0.036,0.072);
@@ -266,10 +276,10 @@ void main(){
     float dIn2=max(dot(N0,normalize(vec3(-0.45,0.72,0.5))),0.0);    // 另一侧的辅助
     float lum=0.06 + uBackGain*pow(dIn,1.6) + 0.42*dIn2;
     col=vec3(0.46,0.38,0.78)*lum;
-    col+=vec3(0.05,0.04,0.09);
+    col+=vec3(0.35,0.28,0.63)*uBackBase;
     // 靠近中心更亮（芯的内侧）
     float coreIn=exp(-length(vP)*3.4);
-    col+=vec3(0.55,0.50,0.92)*coreIn*0.55;
+    col+=vec3(0.55,0.50,0.92)*coreIn*uBackCore;
     gl_FragColor=vec4(col,1.0);
   }else{
     // 正面的面：半透明，后面的面从这儿透上来
@@ -397,11 +407,17 @@ const uMVP=gl.getUniformLocation(pr,'uMVP'),uNM=gl.getUniformLocation(pr,'uNM'),
       uSpecGain=gl.getUniformLocation(pr,'uSpecGain'),
       uSpecPow=gl.getUniformLocation(pr,'uSpecPow'),
       uTurbGain=gl.getUniformLocation(pr,'uTurbGain'),
-      uBackGain=gl.getUniformLocation(pr,'uBackGain');
+      uBackGain=gl.getUniformLocation(pr,'uBackGain'),
+      uDarkK=gl.getUniformLocation(pr,'uDarkK'),
+      uTopGain=gl.getUniformLocation(pr,'uTopGain'),
+      uBackBase=gl.getUniformLocation(pr,'uBackBase'),
+      uBackCore=gl.getUniformLocation(pr,'uBackCore'),
+      uTurbK=gl.getUniformLocation(pr,'uTurbK');
 
 const LP = {pow:4.6, sharp:22, facePow:3.2, innerGain:0.55, decay:0.66, lamSlope:0.50, lamBase:0.55, disp:0.35,
             coreGain:0.26, focusGain:0.40, sparkGain:1.00, rimGain:0.16,
-            specGain:2.40, specPow:140, turbGain:0.85, backGain:1.55};
+            specGain:2.40, specPow:140, turbGain:0.85, backGain:1.55,
+            darkK:0.14, topGain:0.28, backBase:0.09, backCore:0.55, turbK:0.22};
 // 【2026-11-26 修】默认值直接写死在 LP 里，滑杆只负责"改了就跟"。
 // 之前读 el.value 当初始化 → 某些环境下读回 0/空，参数全归零，画面就不动了。
 function bindSlider(id, key, div){
@@ -432,6 +448,11 @@ bindSlider('pg','specGain',100);
 bindSlider('pp','specPow',1);
 bindSlider('tg','turbGain',100);
 bindSlider('bg','backGain',100);
+bindSlider('dk','darkK',100);
+bindSlider('tp','topGain',100);
+bindSlider('bb','backBase',100);
+bindSlider('bc','backCore',100);
+bindSlider('tk','turbK',100);
 const panel = document.getElementById('panel'), ptog = document.getElementById('ptog');
 ptog.addEventListener('click', () => { panel.classList.toggle('hide'); ptog.classList.toggle('hide'); });
 const pclose = document.getElementById('pclose');
@@ -521,6 +542,11 @@ function loop(now){
   gl.uniform1f(uSpecPow, LP.specPow);
   gl.uniform1f(uTurbGain, LP.turbGain);
   gl.uniform1f(uBackGain, LP.backGain);
+  gl.uniform1f(uDarkK, LP.darkK);
+  gl.uniform1f(uTopGain, LP.topGain);
+  gl.uniform1f(uBackBase, LP.backBase);
+  gl.uniform1f(uBackCore, LP.backCore);
+  gl.uniform1f(uTurbK, LP.turbK);
 
   gl.clearColor(0.042,0.036,0.072,1);
   gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
