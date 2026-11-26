@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v63 · 01:35</div>
+    <div id="ver">v64 · 01:50</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -395,16 +395,27 @@ void main(){
     // 越靠边偏得越少 —— 否则一偏就偏到宝石外面，采到背景色就成了黑圈
     float rr = clamp(length(suv - vec2(0.5)) * 2.0, 0.0, 1.0);
     vec2 refrOff = vec2(Nv.x, Nv.y) * 0.34 * (1.0 - rr*0.72);
+    // 【色散收小 · 2026-11-27 01:50】宝："紫水晶折射出来的应该也是紫的"
+    // 紫水晶色散很弱（比钻石弱得多），彩虹只在边缘一点点。
+    // 原来是 0.94/1.00/1.06（差 12%），三路采到完全不同的东西 → 假彩色到处飞。
+    // 收到 0.995/1.000/1.005（差 1%），只有边缘斜得厉害的地方才分出彩边。
     vec3 backC = vec3(
-      texture2D(uBackTex, clamp(suv + refrOff*0.94, vec2(0.001), vec2(0.999))).r,
+      texture2D(uBackTex, clamp(suv + refrOff*0.995, vec2(0.001), vec2(0.999))).r,
       texture2D(uBackTex, clamp(suv + refrOff,        vec2(0.001), vec2(0.999))).g,
-      texture2D(uBackTex, clamp(suv + refrOff*1.06, vec2(0.001), vec2(0.999))).b
+      texture2D(uBackTex, clamp(suv + refrOff*1.005, vec2(0.001), vec2(0.999))).b
     );
+    // 采到宝石外面（背景很暗）时，退回原位置 —— 别让一圈黑边冒出来
+    float bLum = dot(backC, vec3(0.299,0.587,0.114));
+    if(bLum < 0.055){
+      vec3 safe = texture2D(uBackTex, clamp(suv, vec2(0.001), vec2(0.999))).rgb;
+      backC = mix(backC, safe, 0.85);
+    }
     // 背面已经在 backC 里了，这里不再走半透明混合（否则又被屏幕背景吃一半）
     // 不是按比例混，是相加：表面自己的反光 + 透过来的光
     // （按比例混的话，背面一黑正面就跟着黑，看着像一半瞎了）
-    vec3 mixC = backC * 1.35 + col * 1.45;
-    mixC = mixC / (1.0 + mixC * 0.22);   // 软压缩，免得过曝
+    vec3 mixC = backC * 1.15 + col * 1.15;
+    // 压制过曝：只压最亮的那撮，中间调不动（不然整颗发白）
+    mixC = mixC / (1.0 + max(mixC - vec3(0.55), vec3(0.0)) * 1.9);
     gl_FragColor=vec4(mixC, 1.0);
   }
 }`
