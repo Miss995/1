@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v67 · 01:57</div>
+    <div id="ver">v68 · 02:17</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -432,6 +432,11 @@ void main(){
     float Ln = pow(clamp(Lc, 0.0, 1.6)/1.6, 1.75) * 1.75;
     mixC *= (Ln / max(Lc, 0.02));
     mixC = min(mixC, vec3(1.35));
+    // 【高光单独叠 · 2026-11-27 02:17】宝发的参考碎钻：表面有几块纯白的高光，其余压得很深
+    // 咱家 sp 算出来是 5.2，但上面那句 clamp(col,0,1) 直接把它削成 1，
+    // 再经过 S 曲线、对比、收色 —— 一路被压，所以整颗都是中间调，一块白都没有。
+    // 这里把高光放到最后单独加，不受前面那些处理影响。
+    mixC += vec3(1.0, 0.99, 1.0) * min(sp * uSpecGain * 0.55, 1.75);
     gl_FragColor=vec4(mixC, 1.0);
   }
 }`
