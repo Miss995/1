@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v47 · 23:48</div>
+    <div id="ver">v48 · 23:50</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -273,11 +273,11 @@ void main(){
   vec2 gp = dir.xz * 9.0 + dir.y * 2.0;
   float gd = triGrid(gp);
   float gEdge = 1.0 - smoothstep(0.0, 0.10, gd);
-  trans *= (1.0 - gEdge * 0.75);
+  trans *= (1.0 - gEdge * 0.28);
   // 每一格不同亮度 —— 那才是"后面一块块的面"，不是纯色
   float cid = floor(gp.x*1.7) * 17.0 + floor(gp.y*1.7) * 31.0;
   float ch = fract(sin(cid*12.9898)*43758.5453);
-  trans *= (0.55 + 0.95*ch);
+  trans *= (0.42 + 1.25*ch);
 
   vec3 refl = env(reflect(-V,N));
 
