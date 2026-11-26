@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v48 · 23:50</div>
+    <div id="ver">v49 · 00:10</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -127,13 +127,16 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 </div>
 <script>
 const cv=document.getElementById('c'),gl=cv.getContext('webgl',{antialias:true,alpha:false});
+// 2026-11-27 00:09 加：为了 dFdx/dFdy —— 用相邻像素"打到哪个面"的差来判断边界
+if(gl){ gl.getExtension('OES_standard_derivatives'); }
 if(!gl){document.body.innerHTML='<p style="padding:20px">这个浏览器不支持 WebGL</p>'}
 const vs=`attribute vec3 aPos;attribute vec3 aNrm;attribute float aFace;attribute vec3 aCen;
 uniform mat4 uMVP;uniform mat3 uNM;
 varying vec3 vN;varying vec3 vP;varying float vFace;varying vec3 vCen;
 void main(){vN=normalize(uNM*aNrm);vP=aPos;vFace=aFace;vCen=aCen;gl_Position=uMVP*vec4(aPos,1.0);}`;
 
-const fs=`precision highp float;
+const fs=`#extension GL_OES_standard_derivatives : enable
+precision highp float;
 uniform float uT;uniform float uTime;uniform vec2 uRes;uniform float uPass;
 uniform sampler2D uFaceTex;
 uniform sampler2D uNormTex;
@@ -226,8 +229,12 @@ void main(){
   int cur = int(vFace + 0.5);
   vec3 innerLight = vec3(0.0);
   float decay = 1.0;
+  int firstHit = -1;
+  int secondHit = -1;
   for(int s = 0; s < 3; s++){
     int hit = faceNext(cur);
+    if(s == 0) firstHit = hit;
+    if(s == 1) secondHit = hit;
     vec3 Nh = faceNormalOf(hit);
     float f0 = clamp(dot(Nh, -dir), 0.0, 1.0);
     // 【面块 · 2026-11-26】宝："只有外面一层"
@@ -267,17 +274,22 @@ void main(){
   vec3 exitCol = vec3(env(outr).r, env(outd).g, env(outb).b);
   vec3 trans = innerLight * vec3(0.72,0.46,1.05) * uInnerGain + exitCol * 0.22;
 
-  // 【后面的面 · 2026-11-26 23:47】宝："前面的面把后面的面切碎，是视觉上的"
-  // 用折射方向的平面投影铺三角网格（不用球面坐标，正前方会跳变），
-  // 直接乘在"透射"结果上 —— 之前乘 innerLight，被后面的环境色和反射稀释掉了。
-  vec2 gp = dir.xz * 9.0 + dir.y * 2.0;
-  float gd = triGrid(gp);
-  float gEdge = 1.0 - smoothstep(0.0, 0.10, gd);
-  trans *= (1.0 - gEdge * 0.28);
-  // 每一格不同亮度 —— 那才是"后面一块块的面"，不是纯色
-  float cid = floor(gp.x*1.7) * 17.0 + floor(gp.y*1.7) * 31.0;
-  float ch = fract(sin(cid*12.9898)*43758.5453);
-  trans *= (0.42 + 1.25*ch);
+  // 【后面的面 · 2026-11-27 00:10】宝："网格跟宝石本身没关系，有割裂感"
+  // 改成真边界：看相邻像素打到的"面编号"一不一样 ——
+  // 不一样的地方，就是后面那些面的交界。它天生跟着宝石走，不是贴上去的图案。
+  float fh1 = float(firstHit);
+  float fh2 = float(secondHit);
+  float e1 = abs(dFdx(fh1)) + abs(dFdy(fh1));
+  float e2 = abs(dFdx(fh2)) + abs(dFdy(fh2));
+  float edge1 = step(0.0001, e1);
+  float edge2 = step(0.0001, e2);
+  // 边界压暗（像面与面之间的折角）
+  trans *= (1.0 - edge1 * 0.45);
+  trans *= (1.0 - edge2 * 0.30);
+  // 每一跳打到的面不同 → 亮度不同（那才是"一块块")
+  float b1 = fract(sin(fh1*12.9898)*43758.5453);
+  float b2 = fract(sin(fh2*78.233)*43758.5453);
+  trans *= (0.72 + 0.55*b1) * (0.84 + 0.32*b2);
 
   vec3 refl = env(reflect(-V,N));
 
