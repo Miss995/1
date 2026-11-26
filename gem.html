@@ -66,7 +66,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 <div id="card">
   <canvas id="c"></canvas>
   <div class="ui">
-    <div id="ver">v20 · 19:23</div>
+    <div id="ver">v21 · 19:32</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -87,6 +87,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 <button id="ptog">☰</button>
 <div id="panel" class="hide">
   <h4>LIGHT · 光参数</h4>
+  <div id="dbg" style="font-size:8px;color:#6d659a;margin-bottom:4px;word-break:break-all">—</div>
   <div class="pr"><div><span>主光强度</span><b id="v_lp">4.60</b></div><input id="s_lp" type="range" min="0" max="120" value="46"></div>
   <div class="pr"><div><span>主光锐度</span><b id="v_ls">22.00</b></div><input id="s_ls" type="range" min="2" max="120" value="22"></div>
   <div class="pr"><div><span>面朝向幂</span><b id="v_fp">3.20</b></div><input id="s_fp" type="range" min="2" max="80" value="32"></div>
@@ -370,11 +371,19 @@ const uMVP=gl.getUniformLocation(pr,'uMVP'),uNM=gl.getUniformLocation(pr,'uNM'),
       uDisp=gl.getUniformLocation(pr,'uDisp');
 
 const LP = {pow:4.6, sharp:22, facePow:3.2, innerGain:0.55, decay:0.66, lamSlope:0.50, lamBase:0.55, disp:0.35};
+// 【2026-11-26 修】默认值直接写死在 LP 里，滑杆只负责"改了就跟"。
+// 之前读 el.value 当初始化 → 某些环境下读回 0/空，参数全归零，画面就不动了。
 function bindSlider(id, key, div){
   const el = document.getElementById('s_'+id), vb = document.getElementById('v_'+id);
+  const def = LP[key];
+  if(vb) vb.textContent = def.toFixed(2);
+  if(el){ el.value = Math.round(def * div); }
   if(!el) return;
-  const upd = () => { LP[key] = el.value / div; if(vb) vb.textContent = LP[key].toFixed(2); };
-  el.addEventListener('input', upd); upd();
+  const upd = () => {
+    const v = parseFloat(el.value);
+    if(isFinite(v)) { LP[key] = v / div; if(vb) vb.textContent = LP[key].toFixed(2); }
+  };
+  el.addEventListener('input', upd);
 }
 bindSlider('lp','pow',10);
 bindSlider('ls','sharp',1);
@@ -486,7 +495,20 @@ function loop(now){
   gl.depthMask(true);
   gl.disable(gl.BLEND);
 
+  if((frameCount++ % 30) === 0) dbgUpdate();
   requestAnimationFrame(loop);
+}
+let frameCount = 0;
+function dbgUpdate(){
+  const d = document.getElementById('dbg');
+  if(!d) return;
+  const ok = {
+    lp: uLightPow !== null, ls: uLightSharp !== null, fp: uFacePow !== null,
+    ig: uInnerGain !== null, dc: uDecay !== null, lm: uLamSlope !== null,
+    lb: uLamBase !== null, dp: uDisp !== null
+  };
+  d.textContent = 'uniform ok:' + Object.values(ok).filter(Boolean).length + '/8 · '
+    + 'pow=' + LP.pow.toFixed(2) + ' base=' + LP.lamBase.toFixed(2);
 }
 requestAnimationFrame(loop);
 </script>
