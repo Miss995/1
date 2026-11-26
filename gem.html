@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v51 · 00:38</div>
+    <div id="ver">v52 · 00:58</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -251,7 +251,14 @@ void main(){
     // 这一面透出来的光（穿过它往外看）
     // 【真色散 · 2026-11-26】红绿蓝三个波长折射率不同，走三条路出来
     // —— 边缘才有彩虹，不是加一层紫色
-    vec3 nd = refract(dir, Nh, 1.55);
+    // 【零碎 · 2026-11-27 00:58】宝："真宝石从前往后看，后面的结构是零碎的"
+    // 真宝石里一个面的光不是一条直线，是一小束，弹几次之后完全散了 ——
+    // 所以后面的面看起来是错位的、重复的、拼不回去的。
+    // 这里给每一跳按"面的编号"加一点方向扰动，让路走得歪一点。
+    float jt1 = fract(sin(float(hit)*12.9898 + float(s)*7.77)*43758.5453) - 0.5;
+    float jt2 = fract(sin(float(hit)*78.233 + float(s)*3.31)*43758.5453) - 0.5;
+    vec3 jitterDir = normalize(Nh + vec3(jt1, jt2, jt1*jt2) * 0.55);
+    vec3 nd = refract(dir, jitterDir, 1.55);
     if(dot(nd,nd)<1e-4) nd = dir;
     vec3 through;
     vec3 nr = refract(dir, Nh, 1.543);
@@ -279,34 +286,6 @@ void main(){
   vec3 outb = refract(dir, -N, 1.557); if(dot(outb,outb)<1e-4) outb = outd;
   vec3 exitCol = vec3(env(outr).r, env(outd).g, env(outb).b);
   vec3 trans = innerLight * vec3(0.72,0.46,1.05) * uInnerGain + exitCol * 0.22;
-
-  // 【一个像素采多个方向 · 2026-11-27 00:37】宝："搞搞看"
-  // 现在一个像素只有一条光路，所以一个点只采到一个颜色 —— 这就是"切成一块"做不出来的根。
-  // 这里补 4 条旁路：从同一块面出发，方向稍微散开一点，把"旁边那些面"的颜色也采进来。
-  // 散开的地方混进主光路，一块面板里就能看到好几块了。
-  vec3 Tan = normalize(cross(N, abs(N.y) > 0.9 ? vec3(1.0,0.0,0.0) : vec3(0.0,1.0,0.0)));
-  vec3 Bit = cross(N, Tan);
-  vec3 spreadCol = vec3(0.0);
-  float spreadW = 0.0;
-  for(int k = 0; k < 4; k++){
-    vec2 ofs = vec2(k == 0 ? -1.0 : (k == 1 ? 1.0 : (k == 2 ? -1.0 : 1.0)),
-                    k < 2 ? -1.0 : 1.0);
-    vec3 d2 = normalize(dir + (Tan * ofs.x + Bit * ofs.y) * 0.085);
-    int c2 = faceNext(cur);
-    int h2 = faceNext(c2);
-    vec3 n2 = faceNormalOf(h2);
-    float f2 = smoothstep(0.18, 0.62, clamp(dot(n2, -d2), 0.0, 1.0));
-    vec3 th2 = env(refract(d2, n2, 1.55));
-    float hh2 = fract(sin(float(h2)*12.9898 + 41.7)*43758.5453);
-    th2 *= (0.72 + 0.62*hh2);
-    spreadCol += th2 * f2;
-    spreadW += f2;
-  }
-  if(spreadW > 0.001){
-    vec3 avgSpread = spreadCol / spreadW;
-    // 混合：一半主光路，一半"散开看到的"
-    innerLight = mix(innerLight, avgSpread * uInnerGain * 1.6, 0.55);
-  }
 
   // 【后面的面 · 2026-11-27 00:10】宝："网格跟宝石本身没关系，有割裂感"
   // 改成真边界：看相邻像素打到的"面编号"一不一样 ——
