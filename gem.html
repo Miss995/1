@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v65 · 01:53</div>
+    <div id="ver">v66 · 01:54</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -419,10 +419,12 @@ void main(){
     // 【收色 · 2026-11-27 01:53】宝："全球亮度下降100倍，只有我的不变"
     // 白的地方太多了 —— 表面受光和高光叠上去把紫色冲淡成灰。
     // 拉饱和 + 往紫偏一点，把"白"收回到"淡紫/深紫"这一档里。
+    // 【2026-11-27 01:54 修反了】宝说的是"太暗"，猫当成"太白"，还往下压了 0.86。
+    // 现在是：拉饱和保留，但整体提亮 —— 眼睛受不了的暗先救回来。
     float lumC = dot(mixC, vec3(0.299,0.587,0.114));
-    mixC = mix(vec3(lumC), mixC, 1.70);
-    mixC *= vec3(0.88, 0.76, 1.10);
-    mixC *= 0.86;
+    mixC = mix(vec3(lumC), mixC, 1.55);
+    mixC *= vec3(0.92, 0.82, 1.12);
+    mixC *= 1.95;
     gl_FragColor=vec4(mixC, 1.0);
   }
 }`
