@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v53 · 01:05</div>
+    <div id="ver">v56 · 01:13</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -139,6 +139,7 @@ const fs=`#extension GL_OES_standard_derivatives : enable
 precision highp float;
 uniform float uT;uniform float uTime;uniform vec2 uRes;uniform float uPass;
 uniform sampler2D uFaceTex;
+uniform sampler2D uBackTex;
 uniform sampler2D uNormTex;
 uniform float uLightPow;
 uniform float uLightSharp;
@@ -378,25 +379,41 @@ void main(){
     float coreIn=exp(-length(vCen)*3.4);
     col+=vec3(0.55,0.50,0.92)*coreIn*uBackCore;
 
-    // 【零碎 · 2026-11-27 01:05】宝："真宝石从前往后看，后面的结构是零碎的"
-    // 这一段才是"后面的结构"真正的产地（v8 18:21 两遍绘制：先画背面再画半透明正面）。
-    // 现在一个面就是一个纯色块 → 看起来整整齐齐一大片。
-    // 在面内部再切几刀：按世界坐标铺一层细碎的小格，每格亮度不同、交界压暗。
-    vec2 qq = vec2(vP.x*11.0 + vP.z*4.0, vP.y*13.0 - vP.z*5.0);
-    float qg = triGrid(qq);
-    float qe = 1.0 - smoothstep(0.0, 0.075, qg);
-    float cid = floor(qq.x*1.6)*13.0 + floor(qq.y*1.6)*29.0;
-    float chh = fract(sin(cid*12.9898)*43758.5453);
-    col *= (0.34 + 1.45*chh);          // 每小块亮度差很大 —— 碎
-    col *= (1.0 - qe*0.72);            // 小块之间压暗，像折角
     gl_FragColor=vec4(col,1.0);
   }else{
-    // 正面的面：半透明，后面的面从这儿透上来
+    // 【前面的面折射后面的面 · 2026-11-27 01:10】宝："给前面加折射，让它自己把后面折成抽象的样子"
+    // 背面先画到一张图上，正面每个面按自己的倾斜方向去"错开"采它 ——
+    // 面歪多少、往哪儿歪，采到的就是别处那一块，于是一块面板里看到的是别处的碎片。
+    vec2 suv = gl_FragCoord.xy / uRes;
+    vec3 Nv = normalize(vN);
+    vec2 refrOff = vec2(Nv.x, Nv.y) * 0.16;
+    vec3 backC = vec3(
+      texture2D(uBackTex, clamp(suv + refrOff*0.94, vec2(0.001), vec2(0.999))).r,
+      texture2D(uBackTex, clamp(suv + refrOff,        vec2(0.001), vec2(0.999))).g,
+      texture2D(uBackTex, clamp(suv + refrOff*1.06, vec2(0.001), vec2(0.999))).b
+    );
+    vec3 mixC = mix(backC * 0.95, col, 0.52);
     float a=0.40+0.46*F;               // 边缘更实、中间更透
-    gl_FragColor=vec4(col,a);
+    gl_FragColor=vec4(mixC,a);
   }
 }`
 
+// 【背面渲染目标 · 2026-11-27 01:10】背面先画到这张纹理上，正面再采样它
+const backTex = gl.createTexture();
+const backFB = gl.createFramebuffer();
+let backW = 0, backH = 0;
+function setupBackTarget(){
+  backW = cv.width; backH = cv.height;
+  gl.bindTexture(gl.TEXTURE_2D, backTex);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,cv.width,cv.height,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, backFB);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,backTex,0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
 function sh(t,s){const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);
  if(!gl.getShaderParameter(o,gl.COMPILE_STATUS)){
    const msg = gl.getShaderInfoLog(o);
@@ -528,6 +545,7 @@ const uMVP=gl.getUniformLocation(pr,'uMVP'),uNM=gl.getUniformLocation(pr,'uNM'),
       uT=gl.getUniformLocation(pr,'uT'),uTime=gl.getUniformLocation(pr,'uTime'),
       uRes=gl.getUniformLocation(pr,'uRes'),
       uPass=gl.getUniformLocation(pr,'uPass'),
+      uBackTex=gl.getUniformLocation(pr,'uBackTex'),
       uFaceTex=gl.getUniformLocation(pr,'uFaceTex'),
       uNormTex=gl.getUniformLocation(pr,'uNormTex'),
       uLightPow=gl.getUniformLocation(pr,'uLightPow'),
@@ -702,11 +720,14 @@ function loop(now){
   gl.uniform1f(uTurbK, LP.turbK);
   gl.uniform1f(uBackAux, LP.backAux);
 
+  const n=VP.length/6;
+
+  // ---- pass 1：背面 → 画到 backTex 这张图上（2026-11-27 01:11 改的）----
+  if(backW !== cv.width || backH !== cv.height) setupBackTarget();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, backFB);
+  gl.viewport(0,0,cv.width,cv.height);
   gl.clearColor(0.042,0.036,0.072,1);
   gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-
-  const n=VP.length/6;
-  // pass 1：背面（只画背面，写深度）
   gl.enable(gl.CULL_FACE);
   gl.cullFace(gl.FRONT);
   gl.depthMask(true);
@@ -714,7 +735,13 @@ function loop(now){
   gl.uniform1f(uPass,1.0);
   gl.drawArrays(gl.TRIANGLES,0,n);
 
-  // pass 2：正面（半透明混合，不写深度）
+  // ---- pass 2：正面 → 屏幕，采样 backTex（按面的倾斜错开位置）----
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.clearColor(0.042,0.036,0.072,1);
+  gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.activeTexture(gl.TEXTURE0 + 2);
+  gl.bindTexture(gl.TEXTURE_2D, backTex);
+  gl.uniform1i(uBackTex, 2);
   gl.cullFace(gl.BACK);
   gl.depthMask(false);
   gl.enable(gl.BLEND);
