@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v69 · 02:20</div>
+    <div id="ver">v70 · 02:22</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -415,7 +415,10 @@ void main(){
     // （按比例混的话，背面一黑正面就跟着黑，看着像一半瞎了）
     vec3 mixC = backC * 1.15 + col * 1.05;
     // 压制过曝：只压最亮的那撮，中间调不动（不然整颗发白）
-    mixC = mixC / (1.0 + max(mixC - vec3(0.50), vec3(0.0)) * 2.4);
+    // 【2026-11-27 02:21 找着了一直暗的根源】这句压得太狠：
+    // 提亮到 1.72，它一压就压回 0.44 —— 提多少都被吃掉。
+    // 改成只压真正过曝的那一小撮，中间调完整保留。
+    mixC = mixC / (1.0 + max(mixC - vec3(0.88), vec3(0.0)) * 1.05);
     // 【收色 · 2026-11-27 01:53】宝："全球亮度下降100倍，只有我的不变"
     // 白的地方太多了 —— 表面受光和高光叠上去把紫色冲淡成灰。
     // 拉饱和 + 往紫偏一点，把"白"收回到"淡紫/深紫"这一档里。
