@@ -17,6 +17,10 @@ html,body{height:100%;background:#08070d;overflow:hidden;
   background-image:radial-gradient(rgba(255,255,255,.055) 1px,transparent 1px);
   background-size:3px 3px;mix-blend-mode:screen;opacity:.9}
 canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#gshadow{position:absolute;left:50%;top:74%;width:46%;height:6%;
+  transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;z-index:2;
+  background:radial-gradient(ellipse at center, rgba(0,0,0,.85) 0%, rgba(0,0,0,.55) 40%, rgba(0,0,0,0) 72%);
+  filter:blur(6px)}
 #panel{position:fixed;right:8px;bottom:8px;width:172px;background:rgba(14,10,26,.92);
   border:1px solid rgba(150,130,220,.28);border-radius:8px;padding:8px 9px;z-index:60;
   font-size:9px;color:#b9b1de;backdrop-filter:blur(8px);
@@ -65,8 +69,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 <body>
 <div id="card">
   <canvas id="c"></canvas>
+  <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v25 · 20:00</div>
+    <div id="ver">v26 · 20:28</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -417,10 +422,10 @@ const uMVP=gl.getUniformLocation(pr,'uMVP'),uNM=gl.getUniformLocation(pr,'uNM'),
       uTurbK=gl.getUniformLocation(pr,'uTurbK'),
       uBackAux=gl.getUniformLocation(pr,'uBackAux');
 
-const LP = {pow:4.6, sharp:22, facePow:3.2, innerGain:0.55, decay:0.66, lamSlope:0.50, lamBase:0.55, disp:0.35,
-            coreGain:0.26, focusGain:0.40, sparkGain:1.00, rimGain:0.16,
-            specGain:2.40, specPow:140, turbGain:0.85, backGain:1.55,
-            darkK:0.14, topGain:0.28, backBase:0.09, backCore:0.55, turbK:0.22, backAux:0.42};
+const LP = {pow:3.2, sharp:22, facePow:3.2, innerGain:0.38, decay:0.66, lamSlope:0.34, lamBase:0.30, disp:0.35,
+            coreGain:0.16, focusGain:0.24, sparkGain:1.00, rimGain:0.16,
+            specGain:4.20, specPow:260, turbGain:0.85, backGain:1.55,
+            darkK:0.14, topGain:0.28, backBase:0.09, backCore:0.55, turbK:0.30, backAux:0.42};
 // 【2026-11-26 修】默认值直接写死在 LP 里，滑杆只负责"改了就跟"。
 // 之前读 el.value 当初始化 → 某些环境下读回 0/空，参数全归零，画面就不动了。
 function bindSlider(id, key, div){
