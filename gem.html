@@ -52,7 +52,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
 <div id="card">
   <canvas id="c"></canvas>
   <div class="ui">
-    <div id="ver">v18 · 19:10</div>
+    <div id="ver">v19 · 19:17</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -140,7 +140,7 @@ void main(){
   for(int s = 0; s < 3; s++){
     int hit = faceNext(cur);
     vec3 Nh = faceNormalOf(hit);
-    float facing = clamp(dot(Nh, -dir) * 2.0, 0.0, 1.0);   // 光正撞上去才亮
+    float facing = pow(clamp(dot(Nh, -dir), 0.0, 1.0), 3.2);   // 光正撞上去才亮
     // 这一面透出来的光（穿过它往外看）
     vec3 through = env(refract(dir, Nh, 1.55));
     innerLight += through * facing * decay;
@@ -149,7 +149,7 @@ void main(){
     decay *= 0.66;
     cur = hit;
   }
-  vec3 trans = innerLight * vec3(0.74,0.60,1.05) + env(refract(dir, -N, 1.55)) * 0.25;
+  vec3 trans = innerLight * vec3(0.62,0.50,0.88) * 0.55 + env(refract(dir, -N, 1.55)) * 0.22;
   vec3 refl = env(reflect(-V,N));
 
   vec3 col = mix(trans, refl, F*0.85);
