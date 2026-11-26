@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v68 · 02:17</div>
+    <div id="ver">v69 · 02:20</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -424,7 +424,7 @@ void main(){
     float lumC = dot(mixC, vec3(0.299,0.587,0.114));
     mixC = mix(vec3(lumC), mixC, 1.55);
     mixC *= vec3(0.92, 0.82, 1.12);
-    mixC *= 1.55;
+    mixC *= 2.15;
     // 【加对比 · 2026-11-27 01:57】宝："真变成水晶鸡蛋了"
     // 现在每块都差不多亮 —— 不是亮度不够，是对比不够。
     // 亮的一档留着甚至再提，暗的一档压下去，中间调不动。
@@ -436,7 +436,7 @@ void main(){
     // 咱家 sp 算出来是 5.2，但上面那句 clamp(col,0,1) 直接把它削成 1，
     // 再经过 S 曲线、对比、收色 —— 一路被压，所以整颗都是中间调，一块白都没有。
     // 这里把高光放到最后单独加，不受前面那些处理影响。
-    mixC += vec3(1.0, 0.99, 1.0) * min(sp * uSpecGain * 0.55, 1.75);
+    mixC += vec3(1.0, 0.99, 1.0) * min(sp * uSpecGain * 0.95, 1.60);
     gl_FragColor=vec4(mixC, 1.0);
   }
 }`
@@ -616,7 +616,7 @@ const uMVP=gl.getUniformLocation(pr,'uMVP'),uNM=gl.getUniformLocation(pr,'uNM'),
 
 const LP = {pow:3.2, sharp:22, facePow:3.2, innerGain:0.38, decay:0.58, lamSlope:0.24, lamBase:0.16, disp:0.35,
             coreGain:0.16, focusGain:0.24, sparkGain:1.00, rimGain:0.16,
-            specGain:5.20, specPow:260, turbGain:0.85, backGain:1.55,
+            specGain:3.40, specPow:70, turbGain:0.85, backGain:1.55,
             darkK:0.14, topGain:0.28, backBase:0.09, backCore:0.55, turbK:0.30, backAux:0.42};
 // 【2026-11-26 修】默认值直接写死在 LP 里，滑杆只负责"改了就跟"。
 // 之前读 el.value 当初始化 → 某些环境下读回 0/空，参数全归零，画面就不动了。
