@@ -22,7 +22,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver">facet · v1 · 22:00</div>
+<div id="ver">facet · v2 · 22:02</div>
 <div id="fps">-- fps</div>
 <div id="info">刻面光路：椭球求交 + 最近刻面法线 · 三跳折射</div>
 <div id="panel">
@@ -97,16 +97,19 @@ vec2 iSphere(vec3 ro, vec3 rd){
 // ---------- 最近刻面 → 用那个中心当平面法线 ----------
 vec3 facetNormal(vec3 p){
   vec3 np = normalize(p);
+  // 【GLSL ES 1.0 限制 · 2026-11-27 22:00】数组下标只能用常量或循环变量，
+  // 不能用普通的 int 变量（报 Index expression can only contain const or loop symbols）。
+  // 所以不存下标，循环里直接把那一块的方向存下来。
   float best = -2.0;
-  int bi = 0;
+  vec3 bestC = uFacet[0];
   for(int i=0;i<${MAXF};i++){
     if(float(i) >= uNFacet) break;
-    float d = dot(np, uFacet[i]);
-    if(d > best){ best = d; bi = i; }
+    vec3 f = uFacet[i];
+    float d = dot(np, f);
+    if(d > best){ best = d; bestC = f; }
   }
-  vec3 c = uFacet[bi];
-  // 把法线朝"这一块的中心"方向固定 = 平面刻面
-  return normalize(c);
+  // 法线朝"这一块的中心"方向固定 = 平面刻面
+  return normalize(bestC);
 }
 
 float hash21(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
