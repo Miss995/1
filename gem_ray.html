@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Soul Gem</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#08070d;overflow:hidden;
+  font-family:-apple-system,"PingFang SC","Hiragino Sans",sans-serif;color:#cfc9e8}
+#card{position:absolute;inset:12px;border-radius:6px;overflow:hidden;
+  background:
+    radial-gradient(120% 80% at 50% 0%,rgba(120,100,190,.20),transparent 60%),
+    linear-gradient(180deg,#141026,#0b0916 55%,#0a0813);
+  box-shadow:0 0 0 1px rgba(160,140,230,.18),0 0 60px rgba(90,70,160,.25) inset}
+#card::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:radial-gradient(rgba(255,255,255,.055) 1px,transparent 1px);
+  background-size:3px 3px;mix-blend-mode:screen;opacity:.9}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1}
+#gshadow{position:absolute;left:50%;top:74%;width:46%;height:6%;
+  transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;z-index:2;
+  background:radial-gradient(ellipse at center, rgba(0,0,0,.85) 0%, rgba(0,0,0,.55) 40%, rgba(0,0,0,0) 72%);
+  filter:blur(6px);z-index:0}
+#panel{position:fixed;right:8px;bottom:8px;width:172px;background:rgba(14,10,26,.92);
+  border:1px solid rgba(150,130,220,.28);border-radius:8px;padding:8px 9px;z-index:60;
+  font-size:9px;color:#b9b1de;backdrop-filter:blur(8px);
+  max-height:78vh;overflow:auto;-webkit-overflow-scrolling:touch}
+#panel.hide{display:none}
+#panel h4{margin:0 0 6px;font-size:9px;letter-spacing:.1em;color:#8b83b8;font-weight:400}
+#panel .pr{margin:5px 0 7px}
+#panel .pr div{display:flex;justify-content:space-between;margin-bottom:2px}
+#panel .pr b{color:#d8d2ff;font-weight:500}
+#panel input[type=range]{width:100%;height:14px;margin:0;accent-color:#a08cff}
+#cln{position:fixed;right:8px;bottom:50px;z-index:61;width:34px;height:34px;border-radius:50%;
+  border:none;background:rgba(30,24,56,.9);color:#d8d2ff;font-size:14px;line-height:1;
+  cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.5)}
+#ptog{position:fixed;right:8px;bottom:8px;z-index:61;width:34px;height:34px;border-radius:50%;
+  background:rgba(60,45,110,.9);border:1px solid rgba(160,140,230,.5);color:#d8d2ff;
+  font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center}
+#ptog.hide{display:none}
+.ui{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;
+  padding:18px 20px 16px;z-index:3}
+.top{text-align:center;letter-spacing:.42em;font-size:9px;color:#8b83b8;
+  text-transform:uppercase}
+.jp{text-align:center;font-size:26px;letter-spacing:.28em;margin-top:10px;
+  color:#e9e3ff;font-weight:300;text-shadow:0 0 22px rgba(150,120,255,.45)}
+.fr{text-align:center;font-size:9.5px;letter-spacing:.16em;color:#7d75a8;
+  font-style:italic;margin-top:6px}
+.rule{height:1px;margin:14px 0;background:linear-gradient(90deg,transparent,
+  rgba(150,130,220,.45),transparent)}
+.stats{display:flex;justify-content:space-between;text-align:center;font-size:8.5px;
+  letter-spacing:.14em;color:#7c74a6}
+.stats b{display:block;font-size:15px;letter-spacing:.06em;color:#ddd5ff;
+  font-weight:400;margin-top:6px}
+.spacer{flex:1}
+.bottom{padding-top:10px}
+.row{display:flex;justify-content:space-between;font-size:8.5px;
+  letter-spacing:.14em;color:#7c74a6}
+.row b{color:#cfc6f5;font-weight:400;letter-spacing:.06em}
+input[type=range]{pointer-events:auto;width:100%;margin-top:12px;height:22px;
+  -webkit-appearance:none;background:transparent}
+input[type=range]::-webkit-slider-runnable-track{height:1px;
+  background:linear-gradient(90deg,rgba(190,170,255,.75),rgba(120,100,190,.18))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;
+  border-radius:50%;background:#e5dcff;margin-top:-5px;
+  box-shadow:0 0 12px rgba(170,140,255,.9)}
+#ver{position:absolute;top:9px;right:14px;font-size:9px;letter-spacing:.16em;color:#6d659a;z-index:9;pointer-events:none}
+.hint{text-align:center;font-size:8px;letter-spacing:.2em;color:#5d5680;
+  margin-top:8px}
+</style>
+</head>
+<body>
+<div id="card">
+  <canvas id="c"></canvas>
+  <div id="gshadow"></div>
+  <div class="ui">
+    <div id="ver">v73-ray · 18:10</div>
+    <div class="top">Rapport d'Analyse · N°07</div>
+    <div class="jp">ソウルジェム</div>
+    <div class="fr">Soul Gem — l'âme du salon</div>
+    <div class="rule"></div>
+    <div class="stats">
+      <div>透明度 · CLARTÉ<b id="cl">S11</b></div>
+      <div>濁り · TURBIDITÉ<b id="tb">62%</b></div>
+      <div>会話 · SALON<b id="sn">07</b></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="bottom">
+      <div class="row"><span>内包物 · ce qu'elle contient</span><b id="st">des mots</b></div>
+      <input id="r" type="range" min="0" max="100" value="62">
+      <div class="hint">拖动 · 浊度</div>
+    </div>
+  </div>
+</div>
+<button id="cln" title="只看宝石">◉</button>
+<button id="ptog">☰</button>
+<div id="panel" class="hide">
+  <h4 style="display:flex;justify-content:space-between;align-items:center">
+    <span>LIGHT · 光参数</span>
+    <span id="pclose" style="cursor:pointer;font-size:14px;color:#d8d2ff;padding:0 4px">×</span>
+  </h4>
+  <div id="dbg" style="font-size:8px;color:#6d659a;margin-bottom:4px;word-break:break-all">—</div>
+  <div class="pr"><div><span>主光强度</span><b id="v_lp">4.60</b></div><input id="s_lp" type="range" min="0" max="120" value="46"></div>
+  <div class="pr"><div><span>主光锐度</span><b id="v_ls">22.00</b></div><input id="s_ls" type="range" min="2" max="120" value="22"></div>
+  <div class="pr"><div><span>面朝向幂</span><b id="v_fp">3.20</b></div><input id="s_fp" type="range" min="2" max="80" value="32"></div>
+  <div class="pr"><div><span>内部总量</span><b id="v_ig">0.55</b></div><input id="s_ig" type="range" min="0" max="150" value="55"></div>
+  <div class="pr"><div><span>每跳衰减</span><b id="v_dc">0.66</b></div><input id="s_dc" type="range" min="0" max="100" value="66"></div>
+  <div class="pr"><div><span>受光斜率</span><b id="v_lm">0.50</b></div><input id="s_lm" type="range" min="0" max="200" value="50"></div>
+  <div class="pr"><div><span>受光底数</span><b id="v_lb">0.55</b></div><input id="s_lb" type="range" min="0" max="150" value="55"></div>
+  <div class="pr"><div><span>色散</span><b id="v_dp">0.35</b></div><input id="s_dp" type="range" min="0" max="200" value="35"></div>
+  <div style="height:1px;background:rgba(150,130,220,.3);margin:8px 0"></div>
+  <h4 style="margin:0 0 4px">加法项 · 逐项排</h4>
+  <div class="pr"><div><span>内部亮</span><b id="v_cg">0.26</b></div><input id="s_cg" type="range" min="0" max="200" value="26"></div>
+  <div class="pr"><div><span>底部聚焦</span><b id="v_fg">0.40</b></div><input id="s_fg" type="range" min="0" max="200" value="40"></div>
+  <div class="pr"><div><span>碎光</span><b id="v_sg">1.00</b></div><input id="s_sg" type="range" min="0" max="200" value="100"></div>
+  <div class="pr"><div><span>棱线</span><b id="v_rg">0.16</b></div><input id="s_rg" type="range" min="0" max="100" value="16"></div>
+  <div class="pr"><div><span>锐高光强度</span><b id="v_pg">2.40</b></div><input id="s_pg" type="range" min="0" max="600" value="240"></div>
+  <div class="pr"><div><span>锐高光锐度</span><b id="v_pp">140</b></div><input id="s_pp" type="range" min="2" max="300" value="140"></div>
+  <div class="pr"><div><span>浑浊强度</span><b id="v_tg">0.85</b></div><input id="s_tg" type="range" min="0" max="200" value="85"></div>
+  <div class="pr"><div><span>背面光</span><b id="v_bg">1.55</b></div><input id="s_bg" type="range" min="0" max="400" value="155"></div>
+  <div class="pr"><div><span>暗面压暗</span><b id="v_dk">0.14</b></div><input id="s_dk" type="range" min="0" max="100" value="14"></div>
+  <div class="pr"><div><span>顶端照亮</span><b id="v_tp">0.28</b></div><input id="s_tp" type="range" min="0" max="200" value="28"></div>
+  <div class="pr"><div><span>背面基础</span><b id="v_bb">0.09</b></div><input id="s_bb" type="range" min="0" max="100" value="9"></div>
+  <div class="pr"><div><span>背面芯亮</span><b id="v_bc">0.55</b></div><input id="s_bc" type="range" min="0" max="200" value="55"></div>
+  <div class="pr"><div><span>浑浊灰层</span><b id="v_tk">0.22</b></div><input id="s_tk" type="range" min="0" max="100" value="22"></div>
+  <div class="pr"><div><span>背面辅光</span><b id="v_ba">0.42</b></div><input id="s_ba" type="range" min="0" max="200" value="42"></div>
+</div>
+<script>
+const cv=document.getElementById('c'),gl=cv.getContext('webgl',{antialias:true,alpha:false});
+// 2026-11-27 00:09 加：为了 dFdx/dFdy —— 用相邻像素"打到哪个面"的差来判断边界
+if(gl){ gl.getExtension('OES_standard_derivatives'); }
+if(!gl){document.body.innerHTML='<p style="padding:20px">这个浏览器不支持 WebGL</p>'}
+const vs=`attribute vec3 aPos;attribute vec3 aNrm;attribute float aFace;attribute vec3 aCen;
+uniform mat4 uMVP;uniform mat3 uNM;
+varying vec3 vN;varying vec3 vP;varying float vFace;varying vec3 vCen;
+void main(){vN=normalize(uNM*aNrm);vP=aPos;vFace=aFace;vCen=aCen;gl_Position=uMVP*vec4(aPos,1.0);}`;
+
+const fs=`#extension GL_OES_standard_derivatives : enable
+precision highp float;
+uniform float uT;uniform float uTime;uniform vec2 uRes;uniform float uPass;
+uniform sampler2D uFaceTex;
+uniform sampler2D uBackTex;
+uniform sampler2D uNormTex;
+uniform sampler2D uPlaneTex;
+uniform float uLightPow;
+uniform float uLightSharp;
+uniform float uFacePow;
+uniform float uInnerGain;
+uniform float uDecay;
+uniform float uLamSlope;
+uniform float uLamBase;
+uniform float uDisp;
+uniform float uCoreGain;
+uniform float uFocusGain;
+uniform float uSparkGain;
+uniform float uRimGain;
+uniform float uSpecGain;
+uniform float uSpecPow;
+uniform float uTurbGain;
+uniform float uBackGain;
+uniform float uDarkK;
+uniform float uTopGain;
+uniform float uBackBase;
+uniform float uBackCore;
+uniform float uTurbK;
+uniform float uBackAux;
+varying vec3 vN;varying vec3 vP;varying float vFace;varying vec3 vCen;
+
+const float FACE_N = 320.0;
+int faceNext(int i){
+  vec4 c = texture2D(uFaceTex, vec2((float(i)+0.5)/FACE_N, 0.5));
+  float lo = floor(c.r * 255.0 + 0.5);
+  float hi = floor(c.g * 255.0 + 0.5);
+  return int(lo + hi * 256.0);
+}
+vec3 faceNormalOf(int i){
+  vec3 c = texture2D(uNormTex, vec2((float(i)+0.5)/FACE_N, 0.5)).rgb;
+  return normalize(c * 2.0 - 1.0);
+}
+// 【平面 · 2026-11-27】xyz = 法线，w = 平面偏移 d（n·p + d = 0，d 已按 0.6 归一）
+vec4 facePlane(int i){
+  vec4 c = texture2D(uPlaneTex, vec2((float(i)+0.5)/FACE_N, 0.5));
+  vec3 n = normalize(c.rgb * 2.0 - 1.0);
+  float d = (c.a * 2.0 - 1.0) * 0.6;
+  return vec4(n, d);
+}
+
+// 【后面的面 · 2026-11-26 23:35】宝："前面的面把后面的面切碎，是视觉上的"
+// 用折射后的方向铺一层三角网格：不同面板折射方向不同，格子位置就不同，
+// 于是每块面板里都能看到"另一套格子在动" —— 那正是隔着一层玻璃看到后面结构的样子。
+float triGrid(vec2 p){
+  float a = abs(fract(p.x) - 0.5);
+  float b = abs(fract(p.x*0.5 + p.y*0.866) - 0.5);
+  float c = abs(fract(p.x*0.5 - p.y*0.866) - 0.5);
+  return min(min(a,b),c);
+}
+float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
+float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+ float n=0.0;
+ for(int x=0;x<2;x++)for(int y=0;y<2;y++)for(int z=0;z<2;z++){
+   n+=mix(mix(mix(hash(i+vec3(x,y,z)),hash(i+vec3(1-x,y,z)),f.x),
+              mix(hash(i+vec3(x,1-y,z)),hash(i+vec3(1-x,1-y,z)),f.x),f.y),
+          mix(mix(hash(i+vec3(x,y,1-z)),hash(i+vec3(1-x,y,1-z)),f.x),
+              mix(hash(i+vec3(x,1-y,1-z)),hash(i+vec3(1-x,1-y,1-z)),f.x),f.y),f.z);}
+ return n/8.0;}
+
+// 环境：上暗下亮的地平线 + 一个主光源
+// 透过宝石看它，界线被扭曲 = 立刻有玻璃感
+vec3 env(vec3 d){
+  float h=d.y;
+  vec3 sky=vec3(0.38,0.31,0.56);
+  vec3 ground=vec3(0.020,0.018,0.052);
+  vec3 c=mix(ground,sky,smoothstep(-0.32,0.26,h));
+  vec3 Ld=normalize(vec3(-0.55,0.62,0.55));
+  c+=vec3(1.0,0.96,1.0)*pow(max(dot(d,Ld),0.0),uLightSharp)*uLightPow;
+  c+=vec3(0.14,0.09,0.27)*pow(max(dot(d,normalize(vec3(0.62,0.30,0.42))),0.0),6.0);
+  // 【环境里的结构 · 2026-11-27 00:26】宝："透过前面看到后面被切碎"
+  // 原来这里有个格子，但强度只有 0.055，几乎看不见 —— 折射再怎么算也采不出差别。
+  // 加强格子 + 加几道低频暗纹，让"透过去"这件事有参照物。
+  float grid=abs(fract(d.x*7.0)-0.5)+abs(fract(d.y*7.0)-0.5);
+  c+=vec3(0.16,0.14,0.30)*(1.0-smoothstep(0.0,0.05,grid));
+  // 低频暗纹（模糊的斜带，折射一扭就能看出方向变了）
+  float band = sin(d.x*4.2 + d.y*3.1 + d.z*2.4);
+  c *= (0.80 + 0.28 * smoothstep(-0.4, 0.8, band));
+  return c;
+}
+
+void main(){
+  vec3 N=normalize(vN);
+  bool back = uPass > 0.5;
+  if(back) N = -N;                       // 背面：法线朝内看
+  vec3 V=normalize(vec3(0.0,0.0,2.05)-vP);
+
+  // Schlick Fresnel：只有边缘才强反射
+  float ct=max(dot(N,V),0.0);
+  float F=0.045+0.955*pow(1.0-ct,5.0);
+
+  // 【真光路 · 2026-11-26】光进去之后不再"同一个面直接穿出"，
+  // 而是查预计算好的表，在内部的面之间弹三跳——
+  // 每一跳都有一点光从那面透出去（采环境），剩下的继续反射。
+  vec3 dir = refract(-V, N, 1.0/1.55);
+  if(dot(dir,dir)<0.001) dir = reflect(-V, N);   // 全反射兜底
+
+  // 【真光路 v3 · 2026-11-27】带着真实坐标走：
+  // 每跳用当前位置 P 跟下一个面的平面求交，交点就是光真正待的位置。
+  // 位置进来了，才谈得上"厚度""纵深""同一块面里前后不一样"。
+  vec3 P = vP;
+  int cur = int(vFace + 0.5);
+  vec3 innerLight = vec3(0.0);
+  float decay = 1.0;
+  int firstHit = -1;
+  int secondHit = -1;
+  float pathLen = 0.0;
+  for(int s = 0; s < 3; s++){
+    int hit = faceNext(cur);
+    if(s == 0) firstHit = hit;
+    if(s == 1) secondHit = hit;
+
+    vec4 pl = facePlane(hit);
+    vec3 Nh = pl.xyz;
+    float dn = dot(Nh, dir);
+    float t = 1e9;
+    if(abs(dn) > 1e-4) t = -(dot(Nh, P) + pl.w) / dn;
+    if(t < 1e-3 || t > 2.0) t = 0.22;   // 退化兜底：几乎平行 / 跑出晶体
+    vec3 Ph = P + dir * t;              // ★ 真实交点
+    pathLen += t;
+
+    float f0 = clamp(dot(Nh, -dir), 0.0, 1.0);
+    float facing = smoothstep(0.18, 0.55, f0);
+
+    // 透出方向：真实交点处的折射，不再手工加扰动 —— 位置不一样，方向自然就不一样
+    vec3 nd = refract(dir, Nh, 1.55);
+    if(dot(nd,nd)<1e-4) nd = reflect(dir, Nh);
+    vec3 nr = refract(dir, Nh, 1.543);
+    vec3 nb = refract(dir, Nh, 1.557);
+    if(dot(nr,nr)<1e-4) nr = nd;
+    if(dot(nb,nb)<1e-4) nb = nd;
+
+    vec3 through = vec3(env(nr).r, env(nd).g, env(nb).b);
+
+    // ★ 路径深度：光在晶体里走得越远，透出来的越暗（真宝石的纵深）
+    float depthK = 1.0 - smoothstep(0.04, 0.92, pathLen);
+    through *= mix(0.28, 1.0, depthK);
+
+    // 面编号只留一点色差（一块块的区别，幅度比原来小得多）
+    float fh = fract(sin(float(hit)*12.9898 + 78.233)*43758.5453);
+    through *= (0.86 + 0.30*fh);
+
+    innerLight += through * facing * decay;
+
+    // 反射继续：从真实交点出发
+    P = Ph;
+    dir = reflect(dir, Nh);
+    decay *= uDecay;
+    cur = hit;
+  }
+  vec3 outd = refract(dir, -N, 1.55);
+  if(dot(outd,outd)<1e-4) outd = reflect(dir, -N);
+  vec3 outr = refract(dir, -N, 1.543); if(dot(outr,outr)<1e-4) outr = outd;
+  vec3 outb = refract(dir, -N, 1.557); if(dot(outb,outb)<1e-4) outb = outd;
+  vec3 exitCol = vec3(env(outr).r, env(outd).g, env(outb).b);
+  vec3 trans = innerLight * vec3(0.72,0.46,1.05) * uInnerGain + exitCol * 0.22;
+
+  // 【后面的面 · 2026-11-27 00:10】宝："网格跟宝石本身没关系，有割裂感"
+  // 改成真边界：看相邻像素打到的"面编号"一不一样 ——
+  // 不一样的地方，就是后面那些面的交界。它天生跟着宝石走，不是贴上去的图案。
+  float fh1 = float(firstHit);
+  float fh2 = float(secondHit);
+  float e1 = abs(dFdx(fh1)) + abs(dFdy(fh1));
+  float e2 = abs(dFdx(fh2)) + abs(dFdy(fh2));
+  float edge1 = step(0.0001, e1);
+  float edge2 = step(0.0001, e2);
+  // 边界压暗（像面与面之间的折角）
+  trans *= (1.0 - edge1 * 0.45);
+  trans *= (1.0 - edge2 * 0.30);
+  // 每一跳打到的面不同 → 亮度不同（那才是"一块块")
+  float b1 = fract(sin(fh1*12.9898)*43758.5453);
+  float b2 = fract(sin(fh2*78.233)*43758.5453);
+  trans *= (0.72 + 0.55*b1) * (0.84 + 0.32*b2);
+
+  vec3 refl = env(reflect(-V,N));
+
+  // 【不是双层 · 2026-11-27 03:18】宝："后面好像变成双层了，折射前后的样子都显示出来了"
+  // 因为 col 里本来就含着 trans（光路算出来的透过色），外面又叠了一层"偏移采样到的背面"
+  // → 透过的东西画了两遍。这里把 col 里的透过分量压到三成，透的部分交给采样那一遍。
+  vec3 col = mix(trans * 0.32, refl, F*0.85);
+
+  // ---- 内部的亮（不跟着面走，这才是"透"）----
+  float core=exp(-length(vCen*vec3(1.30,0.95,1.30)-vec3(0.0,0.05,0.0))*7.2);
+  col+=vec3(0.56,0.50,0.95)*core*uCoreGain;
+  // 底部聚焦（光从上面进来，在下面收成一团）
+  float focus=exp(-length(vCen-vec3(-0.02,-0.22,0.02))*10.0);
+  col+=vec3(0.58,0.64,1.0)*focus*uFocusGain;
+  // 几粒内部碎光
+  col+=vec3(0.92,0.90,1.0)*exp(-length(vCen-vec3(-0.09,0.13,0.06))*24.0)*0.85*uSparkGain;
+  col+=vec3(0.70,0.78,1.0)*exp(-length(vCen-vec3(0.11,-0.05,-0.03))*28.0)*0.55*uSparkGain;
+  col+=vec3(0.80,0.74,1.0)*exp(-length(vCen-vec3(0.04,0.20,-0.08))*30.0)*0.45*uSparkGain;
+
+  // ---- 表面受光：方向感全靠这一层 ----
+  vec3 Ls=normalize(vec3(-0.45,0.72,0.52));
+  float lam=max(dot(N,Ls),0.0);
+  col*=uLamBase+uLamSlope*lam;
+  // 顶端一线被照亮
+  col+=vec3(0.30,0.26,0.50)*pow(lam,4.0)*uTopGain;
+  // 背光侧压暗，但要留住内部的亮
+  col*=0.86+uDarkK*ct;
+
+  // 内部一点点色散（别太花，KTV 感是从这来的）
+  float dsp=sin(dot(dir,vec3(9.0,7.0,11.0))+uTime*0.4);
+  col+=vec3(0.05,0.01,0.08)*dsp*uDisp;
+
+  // 锐高光
+  vec3 Ld=normalize(vec3(-0.55,0.62,0.55));
+  vec3 H=normalize(Ld+V);
+  float sp=pow(max(dot(N,H),0.0),uSpecPow);
+  col+=vec3(1.0,0.99,1.0)*sp*uSpecGain;
+
+  // 极细的棱线提亮（面的边），让切面看得出
+  float rimF=pow(1.0-ct,2.2);
+  col+=vec3(0.42,0.46,0.72)*rimF*uRimGain;
+
+  // 浑浊：内部絮状
+  float nz=noise3(vCen*5.0+vec3(0.0,uTime*0.04,0.0))*0.60
+          +noise3(vCen*13.0)*0.40;
+  vec3 muddy=vec3(0.46,0.42,0.50);
+  col=mix(col,muddy,uT*nz*uTurbGain);
+  col=mix(col,vec3(0.20,0.18,0.26),uT*uTurbK);
+
+  // 【色调曲线 · 2026-11-26】宝："没有实感"
+  // 实拍紫水晶的跨度是"电光紫→近黑"，咱家全卡在中间亮度。
+  // 这一步把中间调往下压、两端拉开：亮的更亮，暗的直接沉下去。
+  col = clamp(col, 0.0, 1.0);
+  col = col * col * (3.0 - 2.0 * col);          // S 曲线（中间压、两端翘）
+  float lumC = dot(col, vec3(0.2126,0.7152,0.0722));
+  col = mix(vec3(lumC), col, 1.12);              // 提饱和（少一点，别烧眼）
+  col = pow(col, vec3(1.08));                    // 只轻压，别再压黑
+
+  // 背景（跟 env 的地平线对上，宝石才像浮在其中）
+  vec3 bg=vec3(0.042,0.036,0.072);
+
+  // 网点
+  vec2 g=mod(gl_FragCoord.xy,3.0);
+  col*=0.94+0.06*step(1.0,g.x)*step(1.0,g.y);
+  col*=0.97+0.03*sin(gl_FragCoord.y*1.6);
+
+  if(back){
+    // ---- 背面的面：用「从中心往外」的内部光，做出强明暗 ----
+    vec3 N0=normalize(vN);                  // 原始法线（朝外）
+    float dIn=max(dot(N0,normalize(vP+vec3(0.0,0.0001,0.0))),0.0);  // 朝中心的亮
+    float dIn2=max(dot(N0,normalize(vec3(-0.45,0.72,0.5))),0.0);    // 另一侧的辅助
+    float lum=0.16 + uBackGain*pow(dIn,1.6) + uBackAux*dIn2;
+    col=vec3(0.46,0.38,0.78)*lum;
+    col+=vec3(0.35,0.28,0.63)*uBackBase;
+    // 靠近中心更亮（芯的内侧）
+    float coreIn=exp(-length(vCen)*3.4);
+    col+=vec3(0.55,0.50,0.92)*coreIn*uBackCore;
+
+    // 【背面也该一块一块 · 2026-11-27 01:20】宝："看不见背面了"
+    // 背面原来只按"离中心多远"算亮，中间那圈全都差不多 → 透过去是一片均匀的紫，看不出结构。
+    // 这里给每一块背面一个自己的亮度，块与块之间才有差别。
+    float fb = fract(sin(dot(vCen, vec3(127.1, 311.7, 74.7)))*43758.5453);
+    col *= (0.45 + 1.35*fb);
+
+    gl_FragColor=vec4(col,1.0);
+  }else{
+    // 【前面的面折射后面的面 · 2026-11-27 01:10】宝："给前面加折射，让它自己把后面折成抽象的样子"
+    // 背面先画到一张图上，正面每个面按自己的倾斜方向去"错开"采它 ——
+    // 面歪多少、往哪儿歪，采到的就是别处那一块，于是一块面板里看到的是别处的碎片。
+    vec2 suv = gl_FragCoord.xy / uRes;
+    vec3 Nv = normalize(vN);
+    // 越靠边偏得越少 —— 否则一偏就偏到宝石外面，采到背景色就成了黑圈
+    float rr = clamp(length(suv - vec2(0.5)) * 2.0, 0.0, 1.0);
+    vec2 refrOff = vec2(Nv.x, Nv.y) * 0.34 * (1.0 - rr*0.72);
+    // 【色散收小 · 2026-11-27 01:50】宝："紫水晶折射出来的应该也是紫的"
+    // 紫水晶色散很弱（比钻石弱得多），彩虹只在边缘一点点。
+    // 原来是 0.94/1.00/1.06（差 12%），三路采到完全不同的东西 → 假彩色到处飞。
+    // 收到 0.995/1.000/1.005（差 1%），只有边缘斜得厉害的地方才分出彩边。
+    vec3 backC = vec3(
+      texture2D(uBackTex, clamp(suv + refrOff*0.995, vec2(0.001), vec2(0.999))).r,
+      texture2D(uBackTex, clamp(suv + refrOff,        vec2(0.001), vec2(0.999))).g,
+      texture2D(uBackTex, clamp(suv + refrOff*1.005, vec2(0.001), vec2(0.999))).b
+    );
+    // 采到宝石外面（背景很暗）时，退回原位置 —— 别让一圈黑边冒出来
+    float bLum = dot(backC, vec3(0.299,0.587,0.114));
+    if(bLum < 0.055){
+      vec3 safe = texture2D(uBackTex, clamp(suv, vec2(0.001), vec2(0.999))).rgb;
+      backC = mix(backC, safe, 0.85);
+    }
+    // 背面已经在 backC 里了，这里不再走半透明混合（否则又被屏幕背景吃一半）
+    // 不是按比例混，是相加：表面自己的反光 + 透过来的光
+    // （按比例混的话，背面一黑正面就跟着黑，看着像一半瞎了）
+    vec3 mixC = backC * 1.15 + col * 1.05;
+    // 压制过曝：只压最亮的那撮，中间调不动（不然整颗发白）
+    // 【2026-11-27 02:21 找着了一直暗的根源】这句压得太狠：
+    // 提亮到 1.72，它一压就压回 0.44 —— 提多少都被吃掉。
+    // 改成只压真正过曝的那一小撮，中间调完整保留。
+    mixC = mixC / (1.0 + max(mixC - vec3(0.88), vec3(0.0)) * 1.05);
+    // 【收色 · 2026-11-27 01:53】宝："全球亮度下降100倍，只有我的不变"
+    // 白的地方太多了 —— 表面受光和高光叠上去把紫色冲淡成灰。
+    // 拉饱和 + 往紫偏一点，把"白"收回到"淡紫/深紫"这一档里。
+    // 【2026-11-27 01:54 修反了】宝说的是"太暗"，猫当成"太白"，还往下压了 0.86。
+    // 现在是：拉饱和保留，但整体提亮 —— 眼睛受不了的暗先救回来。
+    float lumC = dot(mixC, vec3(0.299,0.587,0.114));
+    mixC = mix(vec3(lumC), mixC, 1.55);
+    // 【偏紫 · 2026-11-27 03:05】宝："整体偏粉了，不是紫水晶那种深紫"
+    // 提亮把红绿一起拉高、高光又叠白 → 变粉。把红压下去、蓝紫抬起来。
+    mixC *= vec3(0.80, 0.74, 1.22);
+    mixC *= 2.15;
+    // 【加对比 · 2026-11-27 01:57】宝："真变成水晶鸡蛋了"
+    // 现在每块都差不多亮 —— 不是亮度不够，是对比不够。
+    // 亮的一档留着甚至再提，暗的一档压下去，中间调不动。
+    float Lc = dot(mixC, vec3(0.299,0.587,0.114));
+    float Ln = pow(clamp(Lc, 0.0, 1.6)/1.6, 1.75) * 1.75;
+    mixC *= (Ln / max(Lc, 0.02));
+    mixC = min(mixC, vec3(1.35));
+    // 【高光单独叠 · 2026-11-27 02:17】宝发的参考碎钻：表面有几块纯白的高光，其余压得很深
+    // 咱家 sp 算出来是 5.2，但上面那句 clamp(col,0,1) 直接把它削成 1，
+    // 再经过 S 曲线、对比、收色 —— 一路被压，所以整颗都是中间调，一块白都没有。
+    // 这里把高光放到最后单独加，不受前面那些处理影响。
+    mixC += vec3(1.0, 0.99, 1.0) * min(sp * uSpecGain * 0.95, 1.60);
+    gl_FragColor=vec4(mixC, 1.0);
+  }
+}`
+
+// 【背面渲染目标 · 2026-11-27 01:10】背面先画到这张纹理上，正面再采样它
+const backTex = gl.createTexture();
+const backFB = gl.createFramebuffer();
+let backW = 0, backH = 0;
+function setupBackTarget(){
+  backW = cv.width; backH = cv.height;
+  gl.bindTexture(gl.TEXTURE_2D, backTex);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,cv.width,cv.height,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, backFB);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,backTex,0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+function sh(t,s){const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);
+ if(!gl.getShaderParameter(o,gl.COMPILE_STATUS)){
+   const msg = gl.getShaderInfoLog(o);
+   console.error(msg);
+   const d = document.createElement('pre');
+   d.style.cssText='position:fixed;left:8px;right:8px;bottom:8px;background:#300;color:#f99;font-size:11px;padding:8px;z-index:999;white-space:pre-wrap;border-radius:6px';
+   d.textContent='SHADER FAIL\n'+msg;
+   document.body.appendChild(d);
+ }return o;}
+const pr=gl.createProgram();
+gl.attachShader(pr,sh(gl.VERTEX_SHADER,vs));
+gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,fs));
+gl.linkProgram(pr);gl.useProgram(pr);
+
+// ---------- icosphere ----------
+function icosphere(subdiv){
+  const t=(1+Math.sqrt(5))/2;
+  let v=[[-1,t,0],[1,t,0],[-1,-t,0],[1,-t,0],
+         [0,-1,t],[0,1,t],[0,-1,-t],[0,1,-t],
+         [t,0,-1],[t,0,1],[-t,0,-1],[-t,0,1]];
+  let f=[[0,11,5],[0,5,1],[0,1,7],[0,7,10],[0,10,11],
+         [1,5,9],[5,11,4],[11,10,2],[10,7,6],[7,1,8],
+         [3,9,4],[3,4,2],[3,2,6],[3,6,8],[3,8,9],
+         [4,9,5],[2,4,11],[6,2,10],[8,6,7],[9,8,1]];
+  v=v.map(p=>{const l=Math.hypot(...p);return p.map(x=>x/l);});
+  for(let s=0;s<subdiv;s++){
+    const nf=[],cache={};
+    const mid=(a,b)=>{
+      const k=a<b?a+'_'+b:b+'_'+a;
+      if(cache[k]!==undefined)return cache[k];
+      const p=[(v[a][0]+v[b][0])/2,(v[a][1]+v[b][1])/2,(v[a][2]+v[b][2])/2];
+      const l=Math.hypot(...p);
+      v.push(p.map(x=>x/l));cache[k]=v.length-1;return cache[k];
+    };
+    for(const [a,b,c] of f){
+      const ab=mid(a,b),bc=mid(b,c),ca=mid(c,a);
+      nf.push([a,ab,ca],[b,bc,ab],[c,ca,bc],[ab,bc,ca]);
+    }
+    f=nf;
+  }
+  return {v,f};
+}
+const {v:IV,f:IF}=icosphere(2);   // 320 面（细碎）——b2026-11-26 宝："面太大"
+const FACE_NORMALS = [];   // 每面法线（下面循环 push）
+const FACE_CENTERS = [];   // 每面质心（算平面偏移用）
+const FACE_NEXT = [];      // 每面射进去打到谁（循环后算）
+
+// 椭球 + 顶点扰动（不规则切割）
+const rx=0.335, ry=0.405, rz=0.315;
+function jitter(p){
+  const s=Math.sin(p[0]*9.1+p[1]*7.3)*Math.cos(p[2]*8.7+p[0]*4.1);
+  const k=1.0+s*0.035;
+  return [p[0]*rx*k, p[1]*ry*k, p[2]*rz*k];
+}
+const VP=[];
+let fi=0;
+for(const [a,b,c] of IF){
+  const A=jitter(IV[a]),B=jitter(IV[b]),C=jitter(IV[c]);
+  // flat normal
+  const u=[B[0]-A[0],B[1]-A[1],B[2]-A[2]];
+  const w=[C[0]-A[0],C[1]-A[1],C[2]-A[2]];
+  let n=[u[1]*w[2]-u[2]*w[1],u[2]*w[0]-u[0]*w[2],u[0]*w[1]-u[1]*w[0]];
+  const ln=Math.hypot(...n)||1; n=n.map(x=>x/ln);
+
+  // 【刻面倾斜 · 2026-11-26】宝："形状别变，但面是散的，光被摊平了"
+  // 给每个面的法线加一点低频倾斜 —— 相邻面倾斜接近，就形成"成片的刻面"，
+  // 反射方向从"散成一片"变成"收拢成几簇"。形状一点不动。
+  const cen=[(A[0]+B[0]+C[0])/3,(A[1]+B[1]+C[1])/3,(A[2]+B[2]+C[2])/3];
+  const TL=0.30;
+  const t1=Math.sin(cen[1]*4.1+cen[2]*2.7);
+  const t2=Math.sin(cen[0]*3.3+cen[2]*5.1);
+  const t3=Math.sin(cen[0]*2.5+cen[1]*4.7);
+  let nn=[n[0]+t1*TL, n[1]+t2*TL, n[2]+t3*TL];
+  const nl=Math.hypot(...nn)||1; nn=nn.map(x=>x/nl);
+
+  for(const P of [A,B,C]) VP.push(P[0],P[1],P[2],nn[0],nn[1],nn[2],fi,cen[0],cen[1],cen[2]);
+  FACE_NORMALS.push(nn);
+  FACE_CENTERS.push([cen[0], cen[1], cen[2]]);
+  fi++;
+}
+
+// 【真光路 v3 · 2026-11-27】预计算改成真实求交。
+// 原来算的是"哪个面的法线跟我最正对"，只比方向，位置完全没参与 ——
+// 光从哪进去、在哪儿、走多远，都不影响跳到哪个面。这就是立不起来的根。
+// 现在：从面质心沿折射方向射出去，跟所有面的平面求交，取最近的交点所在面。
+function _dot3(a,b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
+function _refract3(I,N,eta){
+  const d=_dot3(N,I);
+  const k=1.0-eta*eta*(1.0-d*d);
+  if(k<0) return null;
+  const s=eta*d+Math.sqrt(k);
+  return [eta*I[0]-s*N[0], eta*I[1]-s*N[1], eta*I[2]-s*N[2]];
+}
+for(let i=0;i<FACE_NORMALS.length;i++){
+  const ni=FACE_NORMALS[i], Ci=FACE_CENTERS[i];
+  const cl=Math.hypot(Ci[0],Ci[1],Ci[2])||1;
+  const Vinc=[-Ci[0]/cl, -Ci[1]/cl, -Ci[2]/cl];
+  let Din=_refract3(Vinc, ni, 1.0/1.55);
+  if(!Din) Din=Vinc;
+  let bestT=1e9, bi=i;
+  for(let j=0;j<FACE_NORMALS.length;j++){
+    if(j===i) continue;
+    const nj=FACE_NORMALS[j];
+    const dj=-_dot3(nj, FACE_CENTERS[j]);
+    const den=_dot3(nj, Din);
+    if(Math.abs(den)<1e-5) continue;
+    const t=-(_dot3(nj, Ci)+dj)/den;
+    if(t>1e-3 && t<bestT){ bestT=t; bi=j; }
+  }
+  FACE_NEXT.push(bi);
+}
+
+function makeDataTex(w, bytes){
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(bytes));
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return t;
+}
+const faceNextBytes = [];
+for(let i=0;i<FACE_NEXT.length;i++){
+  const v=FACE_NEXT[i];
+  faceNextBytes.push(v & 255, (v >> 8) & 255, 0, 255);
+}
+const faceNormBytes = [];
+for(let i=0;i<FACE_NORMALS.length;i++){
+  const n = FACE_NORMALS[i];
+  faceNormBytes.push(
+    Math.round((n[0]*0.5+0.5)*255),
+    Math.round((n[1]*0.5+0.5)*255),
+    Math.round((n[2]*0.5+0.5)*255), 255);
+}
+const texNext = makeDataTex(FACE_NEXT.length, faceNextBytes);
+const texNorm = makeDataTex(FACE_NORMALS.length, faceNormBytes);
+// 【平面表 · 2026-11-27】每面的平面方程 n·p + d = 0，传进 shader 做真求交。
+// RGB = 法线（各 ±1 → 0..255），A = d / 0.6 映射到 0..1（椭球半径约 0.42，留余量）
+const facePlaneBytes = [];
+for(let i=0;i<FACE_NORMALS.length;i++){
+  const n = FACE_NORMALS[i], c = FACE_CENTERS[i];
+  const d = -(n[0]*c[0] + n[1]*c[1] + n[2]*c[2]);
+  const dc = Math.max(-0.6, Math.min(0.6, d));
+  facePlaneBytes.push(
+    Math.round((n[0]*0.5+0.5)*255),
+    Math.round((n[1]*0.5+0.5)*255),
+    Math.round((n[2]*0.5+0.5)*255),
+    Math.round((dc/0.6*0.5+0.5)*255));
+}
+const texPlane = makeDataTex(FACE_NORMALS.length, facePlaneBytes);
+const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(VP),gl.STATIC_DRAW);
+const aPos=gl.getAttribLocation(pr,'aPos'),aNrm=gl.getAttribLocation(pr,'aNrm'),
+      aFace=gl.getAttribLocation(pr,'aFace'),aCen=gl.getAttribLocation(pr,'aCen');
+gl.enableVertexAttribArray(aPos);gl.vertexAttribPointer(aPos,3,gl.FLOAT,false,40,0);
+gl.enableVertexAttribArray(aNrm);gl.vertexAttribPointer(aNrm,3,gl.FLOAT,false,40,12);
+gl.enableVertexAttribArray(aFace);gl.vertexAttribPointer(aFace,1,gl.FLOAT,false,40,24);
+if(aCen>=0){gl.enableVertexAttribArray(aCen);gl.vertexAttribPointer(aCen,3,gl.FLOAT,false,40,28);}
+
+const uMVP=gl.getUniformLocation(pr,'uMVP'),uNM=gl.getUniformLocation(pr,'uNM'),
+      uT=gl.getUniformLocation(pr,'uT'),uTime=gl.getUniformLocation(pr,'uTime'),
+      uRes=gl.getUniformLocation(pr,'uRes'),
+      uPass=gl.getUniformLocation(pr,'uPass'),
+      uBackTex=gl.getUniformLocation(pr,'uBackTex'),
+      uFaceTex=gl.getUniformLocation(pr,'uFaceTex'),
+      uNormTex=gl.getUniformLocation(pr,'uNormTex'),
+      uLightPow=gl.getUniformLocation(pr,'uLightPow'),
+      uLightSharp=gl.getUniformLocation(pr,'uLightSharp'),
+      uFacePow=gl.getUniformLocation(pr,'uFacePow'),
+      uInnerGain=gl.getUniformLocation(pr,'uInnerGain'),
+      uDecay=gl.getUniformLocation(pr,'uDecay'),
+      uLamSlope=gl.getUniformLocation(pr,'uLamSlope'),
+      uLamBase=gl.getUniformLocation(pr,'uLamBase'),
+      uDisp=gl.getUniformLocation(pr,'uDisp'),
+      uCoreGain=gl.getUniformLocation(pr,'uCoreGain'),
+      uFocusGain=gl.getUniformLocation(pr,'uFocusGain'),
+      uSparkGain=gl.getUniformLocation(pr,'uSparkGain'),
+      uRimGain=gl.getUniformLocation(pr,'uRimGain'),
+      uSpecGain=gl.getUniformLocation(pr,'uSpecGain'),
+      uSpecPow=gl.getUniformLocation(pr,'uSpecPow'),
+      uTurbGain=gl.getUniformLocation(pr,'uTurbGain'),
+      uBackGain=gl.getUniformLocation(pr,'uBackGain'),
+      uDarkK=gl.getUniformLocation(pr,'uDarkK'),
+      uTopGain=gl.getUniformLocation(pr,'uTopGain'),
+      uBackBase=gl.getUniformLocation(pr,'uBackBase'),
+      uBackCore=gl.getUniformLocation(pr,'uBackCore'),
+      uTurbK=gl.getUniformLocation(pr,'uTurbK'),
+      uBackAux=gl.getUniformLocation(pr,'uBackAux');
+
+const LP = {pow:3.2, sharp:22, facePow:3.2, innerGain:0.38, decay:0.58, lamSlope:0.24, lamBase:0.16, disp:0.35,
+            coreGain:0.16, focusGain:0.24, sparkGain:1.00, rimGain:0.16,
+            specGain:3.40, specPow:70, turbGain:0.85, backGain:1.55,
+            darkK:0.14, topGain:0.28, backBase:0.09, backCore:0.55, turbK:0.30, backAux:0.42};
+// 【2026-11-26 修】默认值直接写死在 LP 里，滑杆只负责"改了就跟"。
+// 之前读 el.value 当初始化 → 某些环境下读回 0/空，参数全归零，画面就不动了。
+function bindSlider(id, key, div){
+  const el = document.getElementById('s_'+id), vb = document.getElementById('v_'+id);
+  const def = LP[key];
+  if(vb) vb.textContent = def.toFixed(2);
+  if(el){ el.value = Math.round(def * div); }
+  if(!el) return;
+  const upd = () => {
+    const v = parseFloat(el.value);
+    if(isFinite(v)) { LP[key] = v / div; if(vb) vb.textContent = LP[key].toFixed(2); }
+  };
+  el.addEventListener('input', upd);
+}
+bindSlider('lp','pow',10);
+bindSlider('ls','sharp',1);
+bindSlider('fp','facePow',10);
+bindSlider('ig','innerGain',100);
+bindSlider('dc','decay',100);
+bindSlider('lm','lamSlope',100);
+bindSlider('lb','lamBase',100);
+bindSlider('dp','disp',100);
+bindSlider('cg','coreGain',100);
+bindSlider('fg','focusGain',100);
+bindSlider('sg','sparkGain',100);
+bindSlider('rg','rimGain',100);
+bindSlider('pg','specGain',100);
+bindSlider('pp','specPow',1);
+bindSlider('tg','turbGain',100);
+bindSlider('bg','backGain',100);
+bindSlider('dk','darkK',100);
+bindSlider('tp','topGain',100);
+bindSlider('bb','backBase',100);
+bindSlider('bc','backCore',100);
+bindSlider('tk','turbK',100);
+bindSlider('ba','backAux',100);
+const panel = document.getElementById('panel'), ptog = document.getElementById('ptog');
+ptog.addEventListener('click', () => { panel.classList.toggle('hide'); ptog.classList.toggle('hide'); });
+// 【净屏按钮 · 2026-11-26 22:28】宝："能不能给我一个按钮把那个背景去掉"
+// 点一下把页面上那堆字（RAPPORT / ソウルジェム / 透明度 / 内包物…）全收起来，只剩宝石。
+const clnBtn = document.getElementById('cln');
+if(clnBtn){
+  clnBtn.addEventListener('click', () => {
+    const ui = document.querySelector('.ui');
+    if(!ui) return;
+    const hidden = ui.style.opacity === '0';
+    ui.style.transition = 'opacity .25s';
+    ui.style.opacity = hidden ? '1' : '0';
+    clnBtn.textContent = hidden ? '◉' : '○';
+  });
+}
+const pclose = document.getElementById('pclose');
+if(pclose) pclose.addEventListener('click', () => { panel.classList.add('hide'); ptog.classList.remove('hide'); });
+
+gl.enable(gl.DEPTH_TEST);
+
+function mul(a,b){const o=new Float32Array(16);
+ for(let i=0;i<4;i++)for(let j=0;j<4;j++){let s=0;
+  for(let k=0;k<4;k++)s+=a[k*4+j]*b[i*4+k];o[i*4+j]=s;}return o;}
+function persp(fovy,asp,n,f){const t=1/Math.tan(fovy/2);const o=new Float32Array(16);
+ o[0]=t/asp;o[5]=t;o[10]=(f+n)/(n-f);o[11]=-1;o[14]=2*f*n/(n-f);return o;}
+function rotY(a){const c=Math.cos(a),s=Math.sin(a);return new Float32Array(
+ [c,0,-s,0, 0,1,0,0, s,0,c,0, 0,0,0,1]);}
+function rotX(a){const c=Math.cos(a),s=Math.sin(a);return new Float32Array(
+ [1,0,0,0, 0,c,s,0, 0,-s,c,0, 0,0,0,1]);}
+function transZ(z){const o=new Float32Array(16);o[0]=o[5]=o[10]=o[15]=1;o[14]=z;return o;}
+function nm3(m){return new Float32Array([m[0],m[4],m[8],m[1],m[5],m[9],m[2],m[6],m[10]]);}
+
+let turb=0.62;
+const r=document.getElementById('r'),tb=document.getElementById('tb'),cl=document.getElementById('cl');
+r.addEventListener('input',()=>{turb=r.value/100;tb.textContent=r.value+'%';
+  cl.textContent=turb<0.25?'S3':turb<0.5?'S7':turb<0.75?'S11':turb<0.9?'S15':'S19';});
+function resize(){const d=Math.min(devicePixelRatio||1,2);
+ cv.width=cv.clientWidth*d;cv.height=cv.clientHeight*d;gl.viewport(0,0,cv.width,cv.height);}
+addEventListener('resize',resize);resize();
+
+// 【旋转控制 · 2026-11-26 宝："旋转速度看得好烦，能手动转吗"】
+// 自动转速 0.22 → 0.45（一圈从 28 秒缩到 14 秒），并支持拖动直接转。
+let spinSpeed = 0.45;
+let spinBase = 0, lastT = 0;
+let dragX = 0, dragY = 0;
+let dragging = false, lastX = 0, lastY = 0;
+
+cv.addEventListener('pointerdown', e => {
+  dragging = true; lastX = e.clientX; lastY = e.clientY;
+  try { cv.setPointerCapture(e.pointerId); } catch(_) {}
+});
+cv.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  dragY += (e.clientX - lastX) * 0.009;
+  dragX += (e.clientY - lastY) * 0.009;
+  dragX = Math.max(-1.1, Math.min(1.1, dragX));   // 上下夹住，别翻过去
+  lastX = e.clientX; lastY = e.clientY;
+});
+const endDrag = () => { dragging = false; };
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
+cv.addEventListener('pointerleave', endDrag);
+
+const t0=performance.now();
+function loop(now){
+  const t=(now-t0)/1000;
+  const dt=t-lastT; lastT=t;
+  if(!dragging) spinBase += dt * spinSpeed;      // 拖的时候停自动转，手感才对
+  const asp=cv.width/cv.height;
+  const proj=persp(0.62,asp,0.1,10);
+  const view=transZ(-2.05);
+  const model=mul(rotX(-0.14+dragX),rotY(spinBase+dragY));
+  const mv=mul(view,model);
+  const mvp=mul(proj,mv);
+  gl.uniformMatrix4fv(uMVP,false,mvp);
+  gl.uniformMatrix3fv(uNM,false,nm3(mv));
+  gl.uniform1f(uT,turb);
+  gl.uniform1f(uTime,t);
+  gl.uniform2f(uRes,cv.width,cv.height);
+  // 面表贴图（真光路用）
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, texNext);
+  gl.uniform1i(uFaceTex, 0);
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, texNorm);
+  gl.uniform1i(uNormTex, 1);
+  gl.activeTexture(gl.TEXTURE3);
+  gl.bindTexture(gl.TEXTURE_2D, texPlane);
+  gl.uniform1i(gl.getUniformLocation(pr,'uPlaneTex'), 3);
+  gl.uniform1f(uLightPow, LP.pow);
+  gl.uniform1f(uLightSharp, LP.sharp);
+  gl.uniform1f(uFacePow, LP.facePow);
+  gl.uniform1f(uInnerGain, LP.innerGain);
+  gl.uniform1f(uDecay, LP.decay);
+  gl.uniform1f(uLamSlope, LP.lamSlope);
+  gl.uniform1f(uLamBase, LP.lamBase);
+  gl.uniform1f(uDisp, LP.disp);
+  gl.uniform1f(uCoreGain, LP.coreGain);
+  gl.uniform1f(uFocusGain, LP.focusGain);
+  gl.uniform1f(uSparkGain, LP.sparkGain);
+  gl.uniform1f(uRimGain, LP.rimGain);
+  gl.uniform1f(uSpecGain, LP.specGain);
+  gl.uniform1f(uSpecPow, LP.specPow);
+  gl.uniform1f(uTurbGain, LP.turbGain);
+  gl.uniform1f(uBackGain, LP.backGain);
+  gl.uniform1f(uDarkK, LP.darkK);
+  gl.uniform1f(uTopGain, LP.topGain);
+  gl.uniform1f(uBackBase, LP.backBase);
+  gl.uniform1f(uBackCore, LP.backCore);
+  gl.uniform1f(uTurbK, LP.turbK);
+  gl.uniform1f(uBackAux, LP.backAux);
+
+  const n=VP.length/6;
+
+  // ---- pass 1：背面 → 画到 backTex 这张图上 ----
+  // 【2026-11-27 01:27 修】之前这里漏了一步：backTex 还绑在 TEXTURE2 上，
+  // 而这一趟又要往 backTex 里画 —— 等于"一边画一边采自己"，浏览器直接把这一趟丢了，
+  // 所以背面一直是空的、调背面亮度也没反应。画之前先把它解绑。
+  gl.activeTexture(gl.TEXTURE0 + 2);
+  gl.bindTexture(gl.TEXTURE_2D, null);
+  if(backW !== cv.width || backH !== cv.height) setupBackTarget();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, backFB);
+  gl.viewport(0,0,cv.width,cv.height);
+  gl.clearColor(0.042,0.036,0.072,1);
+  gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.CULL_FACE);
+  gl.cullFace(gl.FRONT);
+  gl.depthMask(true);
+  gl.disable(gl.BLEND);
+  gl.uniform1f(uPass,1.0);
+  gl.drawArrays(gl.TRIANGLES,0,n);
+
+  // ---- pass 2：正面 → 屏幕，采样 backTex（按面的倾斜错开位置）----
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.clearColor(0.042,0.036,0.072,1);
+  gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.activeTexture(gl.TEXTURE0 + 2);
+  gl.bindTexture(gl.TEXTURE_2D, backTex);
+  gl.uniform1i(uBackTex, 2);
+  gl.cullFace(gl.BACK);
+  gl.depthMask(false);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+  gl.uniform1f(uPass,0.0);
+  gl.drawArrays(gl.TRIANGLES,0,n);
+  gl.depthMask(true);
+  gl.disable(gl.BLEND);
+
+  if((frameCount++ % 30) === 0) dbgUpdate();
+  requestAnimationFrame(loop);
+}
+let frameCount = 0;
+function dbgUpdate(){
+  const d = document.getElementById('dbg');
+  if(!d) return;
+  const ok = {
+    lp: uLightPow !== null, ls: uLightSharp !== null, fp: uFacePow !== null,
+    ig: uInnerGain !== null, dc: uDecay !== null, lm: uLamSlope !== null,
+    lb: uLamBase !== null, dp: uDisp !== null
+  };
+  const elp = document.getElementById('s_lp'), ellb = document.getElementById('s_lb');
+  d.textContent = 'ok:' + Object.values(ok).filter(Boolean).length + '/8'
+    + ' LP.pow=' + LP.pow.toFixed(2)
+    + ' LP.lb=' + LP.lamBase.toFixed(2)
+    + ' | el_lp=' + (elp ? elp.value : 'X')
+    + ' el_lb=' + (ellb ? ellb.value : 'X');
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
