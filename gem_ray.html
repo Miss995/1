@@ -74,7 +74,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
   <canvas id="c"></canvas>
   <div id="gshadow"></div>
   <div class="ui">
-    <div id="ver">v73-ray · 18:10</div>
+    <div id="ver">v73b-ray · 18:35</div>
     <div class="top">Rapport d'Analyse · N°07</div>
     <div class="jp">ソウルジェム</div>
     <div class="fr">Soul Gem — l'âme du salon</div>
@@ -100,6 +100,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;heigh
     <span id="pclose" style="cursor:pointer;font-size:14px;color:#d8d2ff;padding:0 4px">×</span>
   </h4>
   <div id="dbg" style="font-size:8px;color:#6d659a;margin-bottom:4px;word-break:break-all">—</div>
+  <div style="height:1px;background:rgba(255,120,120,.35);margin:6px 0"></div>
+  <h4 style="margin:0 0 4px;color:#ff9d9d">诊断开关 · 拖到 0 就是摘掉那一层</h4>
+  <div class="pr"><div><span>背层混入</span><b id="v_bm">1.00</b></div><input id="s_bm" type="range" min="0" max="100" value="100"></div>
+  <div class="pr"><div><span>光路混入</span><b id="v_rm">1.00</b></div><input id="s_rm" type="range" min="0" max="100" value="100"></div>
+  <div style="height:1px;background:rgba(150,130,220,.3);margin:8px 0"></div>
   <div class="pr"><div><span>主光强度</span><b id="v_lp">4.60</b></div><input id="s_lp" type="range" min="0" max="120" value="46"></div>
   <div class="pr"><div><span>主光锐度</span><b id="v_ls">22.00</b></div><input id="s_ls" type="range" min="2" max="120" value="22"></div>
   <div class="pr"><div><span>面朝向幂</span><b id="v_fp">3.20</b></div><input id="s_fp" type="range" min="2" max="80" value="32"></div>
@@ -164,6 +169,8 @@ uniform float uBackBase;
 uniform float uBackCore;
 uniform float uTurbK;
 uniform float uBackAux;
+uniform float uBackMix;
+uniform float uRayMix;
 varying vec3 vN;varying vec3 vP;varying float vFace;varying vec3 vCen;
 
 const float FACE_N = 320.0;
@@ -323,7 +330,7 @@ void main(){
   // 【不是双层 · 2026-11-27 03:18】宝："后面好像变成双层了，折射前后的样子都显示出来了"
   // 因为 col 里本来就含着 trans（光路算出来的透过色），外面又叠了一层"偏移采样到的背面"
   // → 透过的东西画了两遍。这里把 col 里的透过分量压到三成，透的部分交给采样那一遍。
-  vec3 col = mix(trans * 0.32, refl, F*0.85);
+  vec3 col = mix(trans * 0.32 * uRayMix, refl, F*0.85);
 
   // ---- 内部的亮（不跟着面走，这才是"透"）----
   float core=exp(-length(vCen*vec3(1.30,0.95,1.30)-vec3(0.0,0.05,0.0))*7.2);
@@ -429,7 +436,7 @@ void main(){
     // 背面已经在 backC 里了，这里不再走半透明混合（否则又被屏幕背景吃一半）
     // 不是按比例混，是相加：表面自己的反光 + 透过来的光
     // （按比例混的话，背面一黑正面就跟着黑，看着像一半瞎了）
-    vec3 mixC = backC * 1.15 + col * 1.05;
+    vec3 mixC = backC * 1.15 * uBackMix + col * 1.05;
     // 压制过曝：只压最亮的那撮，中间调不动（不然整颗发白）
     // 【2026-11-27 02:21 找着了一直暗的根源】这句压得太狠：
     // 提亮到 1.72，它一压就压回 0.44 —— 提多少都被吃掉。
@@ -661,6 +668,8 @@ const uMVP=gl.getUniformLocation(pr,'uMVP'),uNM=gl.getUniformLocation(pr,'uNM'),
       uSpecPow=gl.getUniformLocation(pr,'uSpecPow'),
       uTurbGain=gl.getUniformLocation(pr,'uTurbGain'),
       uBackGain=gl.getUniformLocation(pr,'uBackGain'),
+      uBackMix=gl.getUniformLocation(pr,'uBackMix'),
+      uRayMix=gl.getUniformLocation(pr,'uRayMix'),
       uDarkK=gl.getUniformLocation(pr,'uDarkK'),
       uTopGain=gl.getUniformLocation(pr,'uTopGain'),
       uBackBase=gl.getUniformLocation(pr,'uBackBase'),
@@ -671,7 +680,8 @@ const uMVP=gl.getUniformLocation(pr,'uMVP'),uNM=gl.getUniformLocation(pr,'uNM'),
 const LP = {pow:3.2, sharp:22, facePow:3.2, innerGain:0.38, decay:0.58, lamSlope:0.24, lamBase:0.16, disp:0.35,
             coreGain:0.16, focusGain:0.24, sparkGain:1.00, rimGain:0.16,
             specGain:3.40, specPow:70, turbGain:0.85, backGain:1.55,
-            darkK:0.14, topGain:0.28, backBase:0.09, backCore:0.55, turbK:0.30, backAux:0.42};
+            darkK:0.14, topGain:0.28, backBase:0.09, backCore:0.55, turbK:0.30, backAux:0.42,
+            backMix:1.00, rayMix:1.00};
 // 【2026-11-26 修】默认值直接写死在 LP 里，滑杆只负责"改了就跟"。
 // 之前读 el.value 当初始化 → 某些环境下读回 0/空，参数全归零，画面就不动了。
 function bindSlider(id, key, div){
@@ -706,6 +716,8 @@ bindSlider('dk','darkK',100);
 bindSlider('tp','topGain',100);
 bindSlider('bb','backBase',100);
 bindSlider('bc','backCore',100);
+bindSlider('bm','backMix',100);
+bindSlider('rm','rayMix',100);
 bindSlider('tk','turbK',100);
 bindSlider('ba','backAux',100);
 const panel = document.getElementById('panel'), ptog = document.getElementById('ptog');
@@ -819,6 +831,8 @@ function loop(now){
   gl.uniform1f(uBackCore, LP.backCore);
   gl.uniform1f(uTurbK, LP.turbK);
   gl.uniform1f(uBackAux, LP.backAux);
+  gl.uniform1f(uBackMix, LP.backMix);
+  gl.uniform1f(uRayMix, LP.rayMix);
 
   const n=VP.length/6;
 
