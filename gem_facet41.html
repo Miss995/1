@@ -402,6 +402,8 @@ void main(){
   bgl += smoothstep(0.042, 0.0, length(uv - vec2( 0.74, 0.16))) * 0.7;
   bgl += smoothstep(0.030, 0.0, length(uv - vec2( 0.30,-0.72))) * 0.55;
   bg += vec3(0.42, 0.38, 0.62) * bgl;
+  vec3 col = bg;
+
   // 【色散星芒 · 2026-11-28 01:04】宝："先把那个色散做了吧"
   // 参考图里最抓眼的是：宝石把白光拆成彩色，在绒布上撒出一圈放射状的彩点。
   // 做法：同一个星芒图案，红通道放大、蓝通道缩小，三层叠 → 边缘自然散开成彩。
@@ -439,7 +441,6 @@ void main(){
     caus.r = cR * aR;
     caus.g = cR * aG;
     caus.b = cR * aB;
-    caus += vec3(caus.r * 1.00, caus.g * 0.72, caus.b * 0.50) * 0.0;  // 占位，保持向量形状
 
     // 再叠一层更细的碎点，让它像"星尘"而不是"扇子"
     float fine = hash21(floor(vec2(aa * 60.0, radial * 2.2)));
