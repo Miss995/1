@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Soul Gem · 刻面光路</title>
+<style>
+  html,body{margin:0;height:100%;background:#0a0810;overflow:hidden;
+    font-family:-apple-system,"PingFang SC",system-ui,sans-serif;color:#cfc6e8;}
+  #c{display:block;width:100%;height:100%;}
+  #ver{position:fixed;left:12px;top:10px;font-size:11px;opacity:.6;letter-spacing:.05em;}
+  #fps{position:fixed;right:12px;top:10px;font-size:12px;opacity:.9;
+    font-family:ui-monospace,Menlo,monospace;color:#9be8c8;}
+  #info{position:fixed;left:12px;bottom:14px;right:12px;font-size:11px;line-height:1.6;opacity:.5;}
+  #fatal{position:fixed;inset:0;display:none;padding:24px;font-size:13px;line-height:1.7;
+    background:#0a0810;color:#ff9a9a;white-space:pre-wrap;overflow:auto;}
+  #panel{position:fixed;right:10px;bottom:44px;width:150px;font-size:10px;opacity:.75;}
+  .pr{margin:3px 0}
+  .pr span{display:inline-block;width:64px}
+  input[type=range]{width:70px;vertical-align:middle}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ver">facet · v11 · 22:46</div>
+<div id="fps">-- fps</div>
+<div id="info">刻面光路：椭球求交 + 最近刻面法线 · 三跳折射</div>
+<div id="panel">
+  <div class="pr"><span>面数</span><b id="v_n">100</b></div>
+  <div class="pr"><span>跳数</span><b id="v_b">3</b></div>
+  <div class="pr"><span>折射率</span><b id="v_i">1.55</b></div>
+  <div class="pr"><span>色散</span><b id="v_d">0.045</b></div>
+  <div class="pr"><span>曝光</span><b id="v_e">2.4</b></div>
+</div>
+<div id="fatal"></div>
+
+<script>
+const cv = document.getElementById('c');
+const gl = cv.getContext('webgl', {antialias:true, alpha:false, powerPreference:'high-performance'});
+const fatalEl = document.getElementById('fatal');
+function fatal(msg){ fatalEl.style.display='block'; fatalEl.textContent = msg; }
+
+const MAXF = 400;   // 一次最多 200 个刻面（跟着色器里的循环上界一致）
+
+// ---- 生成球面均匀点（斐波那契球）----
+function fibSphere(n){
+  const pts = [];
+  const ga = Math.PI * (3 - Math.sqrt(5));
+  for(let i=0;i<n;i++){
+    const y = 1 - (i / (n - 1)) * 2;
+    const r = Math.sqrt(Math.max(0, 1 - y*y));
+    const th = ga * i;
+    pts.push([Math.cos(th)*r, y, Math.sin(th)*r]);
+  }
+  return pts;
+}
+
+let N = 100;
+let facetData = new Float32Array(MAXF*4);
+
+// 【每块面远近不同 · 2026-11-27 22:45】宝："我不想要那标准石头…谁能拒绝鸽子蛋大的宝石？"
+// 原来所有刻面都是 dot(p,n)=1，离中心一样远 → 切出来是均匀的球（标准）。
+// 给每块一个 0.86~1.06 的半径，块就有大有小、有的凸有的平 —— 像这块料自己的形状。
+// 半径用"低频噪声"打底（成片的凸起/凹陷），再叠一点随机，才像天然，不像乱抖。
+function hash3(x,y,z){
+  let h = Math.sin(x*127.1 + y*311.7 + z*74.7) * 43758.5453;
+  return h - Math.floor(h);
+}
+function vnoise3(x,y,z){
+  // 值噪声（三个方向的线性插值，够用了）
+  const xi=Math.floor(x), yi=Math.floor(y), zi=Math.floor(z);
+  const xf=x-xi, yf=y-yi, zf=z-zi;
+  const sm=(t)=>t*t*(3-2*t);
+  const u=sm(xf), v=sm(yf), w=sm(zf);
+  function L(a,b,t){ return a+(b-a)*t; }
+  const c000=hash3(xi,yi,zi),     c100=hash3(xi+1,yi,zi);
+  const c010=hash3(xi,yi+1,zi),   c110=hash3(xi+1,yi+1,zi);
+  const c001=hash3(xi,yi,zi+1),   c101=hash3(xi+1,yi,zi+1);
+  const c011=hash3(xi,yi+1,zi+1), c111=hash3(xi+1,yi+1,zi+1);
+  return L(L(L(c000,c100,u),L(c010,c110,u),v),
+           L(L(c001,c101,u),L(c011,c111,u),v), w);
+}
+
+function buildFacets(n){
+  const p = fibSphere(n);
+  facetData = new Float32Array(MAXF*4);
+  for(let i=0;i<n;i++){
+    const [x,y,z] = p[i];
+    // 低频起伏（成片的凸/凹） + 一点高频随机
+    const lo = vnoise3(x*1.7+11.3, y*1.7+4.1, z*1.7+7.7);
+    const hi = hash3(x*31.1, y*17.3, z*23.9);
+    const r = 0.90 + (lo - 0.5) * 0.16 + (hi - 0.5) * 0.055;
+    facetData[i*4+0] = x;
+    facetData[i*4+1] = y;
+    facetData[i*4+2] = z;
+    facetData[i*4+3] = r;
+  }
+}
+buildFacets(N);
+
+if(!gl){ fatal('WebGL 没起来。'); }
+else{
+
+const VS = `attribute vec2 aP; void main(){ gl_Position = vec4(aP,0.0,1.0); }`;
+
+const FS = `
+precision highp float;
+uniform vec2  uRes;
+uniform float uTime;
+uniform float uBounces;
+uniform float uIor;
+uniform float uDisp;
+uniform float uExp;
+uniform float uNFacet;
+uniform float uSpin;
+uniform vec4  uFacet[${MAXF}];
+
+// 【旋转 · 2026-11-27 22:11 / 位置修正 22:15】必须定义在所有调用者之前，
+// 否则报 no matching overloaded function found。
+mat3 rotY(float a){
+  float c = cos(a), s = sin(a);
+  return mat3(c, 0.0, -s,  0.0, 1.0, 0.0,  s, 0.0, c);
+}
+
+// ---------- 椭球：||p|| = 1 ----------
+vec2 iSphere(vec3 ro, vec3 rd){
+  float b = dot(ro, rd);
+  float c = dot(ro, ro) - 1.0;
+  float h = b*b - c;
+  if(h < 0.0) return vec2(-1.0);
+  h = sqrt(h);
+  return vec2(-b - h, -b + h);
+}
+
+// 【多面体求交 · 2026-11-27 22:36】宝："还是先修形状"
+// 现在的问题是"球面上贴了一层平面" —— 求交用球，法线用刻面，所以每块刻面在弯球面上鼓出来。
+// 真宝石是一整块多面体：每个刻面是一个平面 dot(p, n)=1，所有平面围出的交集就是它。
+// 求法 = 半空间求交（射线对每个平面算一个 t，入口取最大、出口取最小），一次过，不用步进。
+// 副产品：决定入口的那个平面，它的法线就是这一点的法线 —— 不用再另外找。
+vec2 iPoly(vec3 ro, vec3 rd, out vec3 nHit){
+  float tE = -1e9;
+  float tX =  1e9;
+  vec3 bestN = vec3(0.0, 1.0, 0.0);
+  for(int i=0;i<${MAXF};i++){
+    if(float(i) >= uNFacet) break;
+    vec4 f = uFacet[i];
+    vec3 nn = f.xyz;
+    float rr = f.w;                 // 这个面离中心多远（每块不一样 → 块大小不均）
+    float den = dot(rd, nn);
+    if(abs(den) < 1e-6) continue;
+    float t = (rr - dot(ro, nn)) / den;
+    if(den > 0.0){
+      if(t < tX) tX = t;          // 出口：取最小
+    }else{
+      if(t > tE){ tE = t; bestN = nn; }   // 入口：取最大，记下是哪个平面
+    }
+  }
+  nHit = bestN;
+  if(tE > tX) return vec2(-1.0);
+  return vec2(tE, tX);
+}
+
+// ---------- 最近刻面 → 用那个中心当平面法线 ----------
+// 【查表 · 2026-11-27 22:22】320 个面挨个点积太贵（80fps→30fps）。
+// 改成：开跑前离屏烘焙一张"方向 → 最近刻面法线"的等距柱状图，
+// 每帧只查一次纹理，320 次点积变成 1 次采样。
+uniform sampler2D uFacetMap;
+vec3 facetNormal(vec3 p){
+  vec3 np = normalize(p);
+  vec3 lp = rotY(-uSpin) * np;                       // 转到刻面的局部空间
+  float phi   = atan(lp.z, lp.x);                    // -PI..PI
+  float theta = acos(clamp(lp.y, -1.0, 1.0));        // 0..PI
+  vec2 uv = vec2(phi / 6.28318530718 + 0.5,
+                 theta / 3.14159265359);
+  vec3 n = texture2D(uFacetMap, uv).rgb * 2.0 - 1.0; // 存的是 (n*0.5+0.5)
+  return normalize(rotY(uSpin) * n);                 // 法线转回世界
+}
+
+float hash21(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+float noise2(vec2 p){
+  vec2 i = floor(p), f = fract(p);
+  f = f*f*(3.0-2.0*f);
+  return mix(mix(hash21(i), hash21(i+vec2(1,0)), f.x),
+             mix(hash21(i+vec2(0,1)), hash21(i+vec2(1,1)), f.x), f.y);
+}
+// 【环境跟着转 · 2026-11-27 22:13】宝："光影和球本身反着转"
+vec3 env(vec3 d){
+  d = rotY(uSpin) * d;   // 环境跟着刻面一起转
+  float h = d.y;
+  vec3 sky  = vec3(0.050, 0.044, 0.110);
+  vec3 mid  = vec3(0.22, 0.15, 0.42);
+  vec3 hi   = vec3(0.66, 0.58, 1.00);
+  vec3 col = mix(sky, mid, smoothstep(-0.6, 0.18, h));
+  col = mix(col, hi, smoothstep(0.32, 0.95, h));
+  float n = noise2(d.xz*2.6 + d.y*1.9);
+  col += vec3(0.46, 0.40, 0.82) * pow(n, 3.0) * 0.6;
+  col += vec3(0.98, 0.95, 1.0) * pow(max(d.y,0.0), 8.0) * 1.0;
+  return col;
+}
+
+vec3 refrDir(vec3 d, vec3 n, float eta){
+  vec3 r = refract(d, n, eta);
+  if(dot(r,r) < 1e-6) r = reflect(d, n);
+  return normalize(r);
+}
+
+// 【内部感 · 2026-11-27 22:08】原来每跳固定乘 0.88，跟路径长短无关 ——
+// 所以不管光在里面走了多远，都是一个亮度，看着像"涂色的多面体"。
+// 改成按每一段的实际长度算吸收（Beer-Lambert 的简化），厚的地方才真正沉下去。
+vec3 traceOne(vec3 ro, vec3 rd, float ior){
+  vec3 p = ro;
+  vec3 d = rd;
+  float k = 1.0;
+  float total = 0.0;
+  for(int i=0;i<6;i++){
+    if(float(i) >= uBounces) break;
+    vec3 nHit;
+    vec2 h = iPoly(p, d, nHit);
+    if(h.y < 0.0) break;
+    float t = (i == 0) ? h.x : h.y;
+    total += t;
+    p = p + d * t;
+    vec3 n = normalize(nHit);
+    if(dot(d, n) > 0.0) n = -n;         // 保证朝外
+    float eta = (dot(d, n) < 0.0) ? (1.0/ior) : ior;
+    d = refrDir(d, n, eta);
+    k *= 0.94;
+    p = p + d * 0.002;
+  }
+  // 吸收：走过的路越长越暗（0.62 是吸收系数）
+  k *= exp(-total * 0.42);
+  return env(d) * k;
+}
+
+void main(){
+  vec2 uv = (gl_FragCoord.xy - 0.5*uRes) / min(uRes.x, uRes.y);
+  // 【蛋形 · 2026-11-27 22:46】鸽子蛋 = 竖着长一点。求交前把射线在 y 上压一下，
+  // 相当于把整个形状在 y 方向拉长（1/0.82 ≈ 1.22 倍高）。
+  vec3 ro = vec3(0.0, 0.0, -3.05);
+  vec3 rd = normalize(vec3(uv, 1.0));
+  ro.y *= 0.82; rd.y *= 0.82;
+
+  vec3 bg = vec3(0.042, 0.036, 0.072);
+  vec3 col = bg;
+
+  vec3 nSurf;
+  vec2 h = iPoly(ro, rd, nSurf);
+  if(h.y > 0.0){
+    vec3 cR = traceOne(ro, rd, uIor*(1.0 - uDisp));
+    vec3 cG = traceOne(ro, rd, uIor);
+    vec3 cB = traceOne(ro, rd, uIor*(1.0 + uDisp));
+    vec3 through = vec3(cR.r, cG.g, cB.b);
+
+    vec3 p0 = ro + rd * h.x;
+    vec3 n0 = normalize(nSurf);
+    if(dot(rd, n0) > 0.0) n0 = -n0;
+    float f0 = pow(1.0 - clamp(dot(-rd, n0), 0.0, 1.0), 5.0);
+    float F = 0.045 + 0.955 * f0;
+    vec3 refl = env(reflect(rd, n0));
+
+    col = mix(through, refl, F);
+    col *= uExp;
+  }
+
+  col = col / (1.0 + max(col - vec3(0.85), vec3(0.0)) * 1.4);
+  col = pow(max(col, vec3(0.0)), vec3(0.92));
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+function compile(type, src){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){
+    fatal('着色器编译失败：\n' + gl.getShaderInfoLog(s));
+    return null;
+  }
+  return s;
+}
+
+// ===== 烘焙：方向 → 最近刻面法线（只跑一次）=====
+const BAKE_FS = `
+precision highp float;
+uniform vec2  uRes;
+uniform float uNFacet;
+uniform vec4  uFacet[${MAXF}];
+const float PI  = 3.14159265359;
+const float TAU = 6.28318530718;
+void main(){
+  vec2 uv = gl_FragCoord.xy / uRes;
+  float phi   = (uv.x - 0.5) * TAU;
+  float theta = uv.y * PI;
+  vec3 d = vec3(sin(theta)*cos(phi), cos(theta), sin(theta)*sin(phi));
+  float best = -2.0;
+  vec3 bestC = uFacet[0];
+  for(int i=0;i<${MAXF};i++){
+    if(float(i) >= uNFacet) break;
+    vec3 f = uFacet[i].xyz;
+    float dd = dot(d, f);
+    if(dd > best){ best = dd; bestC = f; }
+  }
+  gl_FragColor = vec4(normalize(bestC) * 0.5 + 0.5, 1.0);
+}
+`;
+
+const vs = compile(gl.VERTEX_SHADER, VS);
+const fs = compile(gl.FRAGMENT_SHADER, FS);
+if(vs && fs){
+  const pr = gl.createProgram();
+  gl.attachShader(pr, vs); gl.attachShader(pr, fs);
+  gl.linkProgram(pr);
+  if(!gl.getProgramParameter(pr, gl.LINK_STATUS)){
+    fatal('链接失败：\n' + gl.getProgramInfoLog(pr));
+  }else{
+    gl.useProgram(pr);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+    const aP = gl.getAttribLocation(pr, 'aP');
+    gl.enableVertexAttribArray(aP);
+    gl.vertexAttribPointer(aP, 2, gl.FLOAT, false, 0, 0);
+
+    const U = {
+      res: gl.getUniformLocation(pr,'uRes'),
+      time: gl.getUniformLocation(pr,'uTime'),
+      bounces: gl.getUniformLocation(pr,'uBounces'),
+      ior: gl.getUniformLocation(pr,'uIor'),
+      disp: gl.getUniformLocation(pr,'uDisp'),
+      exp: gl.getUniformLocation(pr,'uExp'),
+      nf: gl.getUniformLocation(pr,'uNFacet'),
+      spin: gl.getUniformLocation(pr,'uSpin'),
+      facet: gl.getUniformLocation(pr,'uFacet[0]'),
+      facetMap: gl.getUniformLocation(pr,'uFacetMap'),
+    };
+
+    const P = { bounces:3, ior:1.55, disp:0.045, exp:2.6, n:N };
+
+    function resize(){
+      const d = Math.min(window.devicePixelRatio || 1, 2);
+      cv.width  = Math.max(1, Math.floor(cv.clientWidth  * d));
+      cv.height = Math.max(1, Math.floor(cv.clientHeight * d));
+      gl.viewport(0,0,cv.width,cv.height);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // ===== 执行烘焙 =====
+    let facetTex = null;
+    (function bake(){
+      const bvs = compile(gl.VERTEX_SHADER, VS);
+      const bfs = compile(gl.FRAGMENT_SHADER, BAKE_FS);
+      if(!bvs || !bfs) return;
+      const bp = gl.createProgram();
+      gl.attachShader(bp, bvs); gl.attachShader(bp, bfs);
+      gl.linkProgram(bp);
+      if(!gl.getProgramParameter(bp, gl.LINK_STATUS)){
+        fatal('烘焙程序链接失败：\n' + gl.getProgramInfoLog(bp));
+        return;
+      }
+      const BW = 1024, BH = 512;
+      const tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, BW, BH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+      const fb = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+      if(gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE){
+        fatal('烘焙用的 framebuffer 建不起来。'); return;
+      }
+      gl.viewport(0,0,BW,BH);
+      gl.useProgram(bp);
+      gl.uniform2f(gl.getUniformLocation(bp,'uRes'), BW, BH);
+      gl.uniform1f(gl.getUniformLocation(bp,'uNFacet'), P.n);
+      const fl = gl.getUniformLocation(bp,'uFacet[0]');
+      if(fl) gl.uniform4fv(fl, facetData);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.deleteFramebuffer(fb);
+      facetTex = tex;
+      // 【恢复状态 · 2026-11-27 22:31】上一版忘了这三步 → 主绘制还在用烘焙程序 + 1024x512 的视口，
+      // 屏幕上是把法线图直接怼出来了（一串彩色网格，90 帧但不是宝石）。
+      gl.useProgram(pr);
+      gl.viewport(0, 0, cv.width, cv.height);
+      gl.enableVertexAttribArray(aP);
+      gl.vertexAttribPointer(aP, 2, gl.FLOAT, false, 0, 0);
+      console.log('[bake] facet map ready', BW+'x'+BH, 'faces='+P.n);
+    })();
+
+    const fpsEl = document.getElementById('fps');
+    let frames = 0, last = performance.now();
+
+    function draw(t){
+      gl.uniform2f(U.res, cv.width, cv.height);
+      gl.uniform1f(U.time, t*0.001);
+      gl.uniform1f(U.bounces, P.bounces);
+      gl.uniform1f(U.ior, P.ior);
+      gl.uniform1f(U.disp, P.disp);
+      gl.uniform1f(U.exp, P.exp);
+      gl.uniform1f(U.nf, P.n);
+      gl.uniform1f(U.spin, t * 0.00035);   // 约 18 秒一圈
+      // 求交要用刻面表（多面体），所以又得每帧传一次了
+      if(U.facet) gl.uniform4fv(U.facet, facetData);
+      if(facetTex && U.facetMap){
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, facetTex);
+        gl.uniform1i(U.facetMap, 1);
+      }
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+      frames++;
+      const now = performance.now();
+      if(now - last > 500){
+        fpsEl.textContent = Math.round(frames*1000/(now-last)) + ' fps';
+        frames = 0; last = now;
+      }
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+  }
+}
+}
+</script>
+</body>
+</html>
