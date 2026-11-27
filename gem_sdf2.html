@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Soul Gem · 真光路测试</title>
+<style>
+  html,body{margin:0;height:100%;background:#0a0810;overflow:hidden;
+    font-family:-apple-system,"PingFang SC",system-ui,sans-serif;color:#cfc6e8;}
+  #c{display:block;width:100%;height:100%;}
+  #ver{position:fixed;left:12px;top:10px;font-size:11px;opacity:.6;letter-spacing:.05em;}
+  #fps{position:fixed;right:12px;top:10px;font-size:12px;opacity:.85;
+    font-family:ui-monospace,Menlo,monospace;color:#9be8c8;}
+  #info{position:fixed;left:12px;bottom:14px;right:12px;font-size:11px;line-height:1.6;opacity:.55;}
+  #fatal{position:fixed;inset:0;display:none;padding:24px;font-size:13px;line-height:1.7;
+    background:#0a0810;color:#ff9a9a;white-space:pre-wrap;overflow:auto;}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ver">sdf-ray · v2 · 21:55</div>
+<div id="fps">-- fps</div>
+<div id="info">真光路测试：椭球解析求交 · 三跳折射 · 程序化环境<br>目的只有一个 —— 看手机上跑不跑得动</div>
+<div id="fatal"></div>
+
+<script>
+const cv = document.getElementById('c');
+const gl = cv.getContext('webgl', {antialias:true, alpha:false, powerPreference:'high-performance'});
+const fatalEl = document.getElementById('fatal');
+function fatal(msg){ fatalEl.style.display='block'; fatalEl.textContent = msg; }
+if(!gl){ fatal('WebGL 没起来。'); }
+else{
+
+const VS = `attribute vec2 aP; void main(){ gl_Position = vec4(aP,0.0,1.0); }`;
+
+const FS = `
+precision highp float;
+uniform vec2  uRes;
+uniform float uTime;
+uniform float uBounces;   // 跳数（1..4）
+uniform float uIor;       // 折射率
+uniform float uDisp;      // 色散强度
+uniform float uExp;       // 曝光
+
+const float PI = 3.14159265359;
+
+// ---------- 椭球：||p|| = 1 ----------
+vec2 iSphere(vec3 ro, vec3 rd){
+  float b = dot(ro, rd);
+  float c = dot(ro, ro) - 1.0;
+  float h = b*b - c;
+  if(h < 0.0) return vec2(-1.0);
+  h = sqrt(h);
+  return vec2(-b - h, -b + h);
+}
+
+vec3 nSphere(vec3 p){ return normalize(p); }
+
+// ---------- 程序化环境：紫调 + 地平线 + 几块柔光 ----------
+float hash21(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+float noise2(vec2 p){
+  vec2 i = floor(p), f = fract(p);
+  f = f*f*(3.0-2.0*f);
+  return mix(mix(hash21(i), hash21(i+vec2(1,0)), f.x),
+             mix(hash21(i+vec2(0,1)), hash21(i+vec2(1,1)), f.x), f.y);
+}
+vec3 env(vec3 d){
+  float h = d.y;
+  vec3 sky  = vec3(0.055, 0.048, 0.115);
+  vec3 mid  = vec3(0.20, 0.14, 0.38);
+  vec3 hi   = vec3(0.62, 0.55, 0.95);
+  vec3 col = mix(sky, mid, smoothstep(-0.55, 0.20, h));
+  col = mix(col, hi, smoothstep(0.35, 0.95, h));
+  // 几块柔光（窗外那种）
+  float n = noise2(d.xz*2.4 + d.y*1.7);
+  col += vec3(0.42, 0.38, 0.75) * pow(n, 3.0) * 0.55;
+  // 顶部一盏亮
+  float up = max(d.y, 0.0);
+  col += vec3(0.95, 0.92, 1.0) * pow(up, 7.0) * 0.9;
+  return col;
+}
+
+// ---------- 一次折射 ----------
+vec3 refr(vec3 d, vec3 n, float eta){
+  vec3 r = refract(d, n, eta);
+  if(dot(r,r) < 1e-6) r = reflect(d, n);
+  return normalize(r);
+}
+
+// ---------- 主色：给定方向和折射率，走 N 跳 ----------
+vec3 traceOne(vec3 ro, vec3 rd, float ior, out float aSum){
+  float t0 = 0.0;
+  vec3 p = ro;
+  vec3 d = rd;
+  vec3 acc = vec3(0.0);
+  float a = 0.0;            // 累积透射率（按跳衰减）
+  float k = 1.0;
+  for(int i=0;i<6;i++){
+    if(float(i) >= uBounces) break;
+    vec2 h = iSphere(p, d);
+    if(h.y < 0.0) break;
+    float t = (i == 0) ? h.x : h.y;
+    p = p + d * t;
+    vec3 n = nSphere(p);
+    // 进/出：靠方向与法线判断
+    float eta = (dot(d, n) < 0.0) ? (1.0/ior) : ior;
+    if(dot(d,n) >= 0.0) n = -n;
+    vec3 nd = refr(d, n, eta);
+    // 每跳吸一点（越深越暗，模拟吸收）
+    k *= 0.86;
+    a += k * 0.22;
+    d = nd;
+    // 稍微挪开一点，避免自交
+    p = p + d * 0.0015;
+  }
+  acc = env(d) * k;
+  aSum = clamp(a, 0.0, 1.0);
+  return acc;
+}
+
+void main(){
+  vec2 uv = (gl_FragCoord.xy - 0.5*uRes) / min(uRes.x, uRes.y);
+  vec3 ro = vec3(0.0, 0.0, -3.05);
+  vec3 rd = normalize(vec3(uv, 1.0));
+
+  // 背景
+  vec3 bg = vec3(0.042, 0.036, 0.072);
+  vec3 col = bg;
+
+  vec2 h = iSphere(ro, rd);
+  if(h.y > 0.0){
+    float ta = 0.0, tb = 0.0, tc = 0.0;
+    // 三路折射率（色散）：只在出射时分离太复杂，这里先三路整体走
+    vec3 cR = traceOne(ro, rd, uIor*(1.0 - uDisp), ta);
+    vec3 cG = traceOne(ro, rd, uIor,                      tb);
+    vec3 cB = traceOne(ro, rd, uIor*(1.0 + uDisp), tc);
+    vec3 through = vec3(cR.r, cG.g, cB.b);
+
+    // 表面反射（菲涅尔）
+    vec3 p0 = ro + rd * h.x;
+    vec3 n0 = nSphere(p0);
+    float f0 = pow(1.0 - clamp(dot(-rd, n0), 0.0, 1.0), 5.0);
+    float F = 0.045 + 0.955 * f0;
+    vec3 refl = env(reflect(rd, n0));
+
+    col = mix(through, refl, F);
+    // 一点内部辉光
+    float core = exp(-length(p0*vec3(1.2,0.9,1.2)) * 2.4);
+    col += vec3(0.42, 0.38, 0.85) * core * 0.18;
+    col *= uExp;
+  }
+
+  // 轻微色调曲线
+  col = col / (1.0 + max(col - vec3(0.85), vec3(0.0)) * 1.4);
+  col = pow(max(col, vec3(0.0)), vec3(0.92));
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+function compile(type, src){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){
+    fatal('着色器编译失败：\n' + gl.getShaderInfoLog(s));
+    return null;
+  }
+  return s;
+}
+
+const vs = compile(gl.VERTEX_SHADER, VS);
+const fs = compile(gl.FRAGMENT_SHADER, FS);
+const pr = gl.createProgram();
+if(vs && fs){
+  gl.attachShader(pr, vs); gl.attachShader(pr, fs);
+  gl.linkProgram(pr);
+  if(!gl.getProgramParameter(pr, gl.LINK_STATUS)){
+    fatal('链接失败：\n' + gl.getProgramInfoLog(pr));
+  }else{
+    gl.useProgram(pr);
+
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+    const aP = gl.getAttribLocation(pr, 'aP');
+    gl.enableVertexAttribArray(aP);
+    gl.vertexAttribPointer(aP, 2, gl.FLOAT, false, 0, 0);
+
+    const U = {
+      res: gl.getUniformLocation(pr,'uRes'),
+      time: gl.getUniformLocation(pr,'uTime'),
+      bounces: gl.getUniformLocation(pr,'uBounces'),
+      ior: gl.getUniformLocation(pr,'uIor'),
+      disp: gl.getUniformLocation(pr,'uDisp'),
+      exp: gl.getUniformLocation(pr,'uExp'),
+    };
+
+    // ---- 参数（先给一组保守值）----
+    const P = { bounces:3, ior:1.55, disp:0.008, exp:2.4 };
+
+    function resize(){
+      const d = Math.min(window.devicePixelRatio || 1, 2);
+      cv.width  = Math.max(1, Math.floor(cv.clientWidth  * d));
+      cv.height = Math.max(1, Math.floor(cv.clientHeight * d));
+      gl.viewport(0,0,cv.width,cv.height);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // ---- 帧率显示 ----
+    const fpsEl = document.getElementById('fps');
+    let frames = 0, last = performance.now(), fpsShown = 0;
+
+    function draw(t){
+      gl.uniform2f(U.res, cv.width, cv.height);
+      gl.uniform1f(U.time, t*0.001);
+      gl.uniform1f(U.bounces, P.bounces);
+      gl.uniform1f(U.ior, P.ior);
+      gl.uniform1f(U.disp, P.disp);
+      gl.uniform1f(U.exp, P.exp);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+      frames++;
+      const now = performance.now();
+      if(now - last > 500){
+        fpsShown = Math.round(frames * 1000 / (now - last));
+        fpsEl.textContent = fpsShown + ' fps';
+        frames = 0; last = now;
+      }
+      // 【不降频 · 2026-11-27 21:55】宝："从40多跳到四？"——那是猫自己的省电逻辑在降频，不是性能掉。
+      // 测帧率就得一直跑，别自己降。
+      requestAnimationFrame(draw);
+    }
+    const startT = performance.now();
+    requestAnimationFrame(draw);
+  }
+}
+}
+</script>
+</body>
+</html>
