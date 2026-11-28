@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Soul Gem · 刻面光路</title>
+<style>
+  html,body{margin:0;height:100%;background:#0a0810;overflow:hidden;
+    font-family:-apple-system,"PingFang SC",system-ui,sans-serif;color:#cfc6e8;}
+  #c{display:block;width:100%;height:100%;}
+  #ver{position:fixed;left:12px;top:10px;font-size:11px;opacity:.6;letter-spacing:.05em;}
+  #fps{position:fixed;right:12px;top:10px;font-size:12px;opacity:.9;
+    font-family:ui-monospace,Menlo,monospace;color:#9be8c8;}
+  #info{position:fixed;left:12px;bottom:14px;right:12px;font-size:11px;line-height:1.6;opacity:.5;}
+  #fatal{position:fixed;inset:0;display:none;padding:24px;font-size:13px;line-height:1.7;
+    background:#0a0810;color:#ff9a9a;white-space:pre-wrap;overflow:auto;}
+  #panel{position:fixed;right:10px;bottom:44px;width:150px;font-size:10px;opacity:.75;}
+  .pr{margin:3px 0}
+  .pr span{display:inline-block;width:64px}
+  input[type=range]{width:70px;vertical-align:middle}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ver">facet · v68 · 15:57 · 面对比</div>
+<div id="fps">-- fps</div>
+<div id="info">刻面光路：椭球求交 + 最近刻面法线 · 三跳折射</div>
+<div id="panel">
+  <div class="pr"><span>面数</span><b id="v_n">100</b></div>
+  <div class="pr"><span>跳数</span><b id="v_b">8</b></div>
+  <div class="pr"><span>折射率</span><b id="v_i">1.55</b></div>
+  <div class="pr"><span>色散</span><b id="v_d">0.000</b></div>
+  <div class="pr"><span>曝光</span><b id="v_e">3.1</b></div>
+  <div class="pr"><span>面对比</span><input type="range" id="s_ce" min="0" max="1" step="0.02" value="0.45"><b id="v_ce">0.45</b></div>
+</div>
+<div id="fatal"></div>
+
+<script>
+const cv = document.getElementById('c');
+// 【WebGL2 优先 · 2026-11-28 02:40】宝发的报错：这台机的 webgl1 不支持
+// GL_OES_standard_derivatives，所以 fwidth 编不过（棱线要用它找面边界）。
+// WebGL2 里 fwidth 是内置的，不用扩展。
+let gl = cv.getContext('webgl2', {antialias:true, alpha:false, powerPreference:'high-performance'});
+const _isGL2 = !!gl;
+if(!gl) gl = cv.getContext('webgl', {antialias:true, alpha:false, powerPreference:'high-performance'});
+// 【2026-11-28 02:42】棱线要用 fwidth（导数）。WebGL2 自带，WebGL1 要扩展且这台机不支持。
+// 所以由 JS 决定注不注入这个宏 —— 注入不了就整段走 #else，画面照常、只是没有棱线。
+const _FS_DEFINE = _isGL2 ? '#define HAS_DERIV 1' : '';
+const fatalEl = document.getElementById('fatal');
+function fatal(msg){ fatalEl.style.display='block'; fatalEl.textContent = msg; }
+
+const MAXF = 400;   // 一次最多 200 个刻面（跟着色器里的循环上界一致）
+
+// ---- 生成球面均匀点（斐波那契球）----
+function fibSphere(n){
+  const pts = [];
+  const ga = Math.PI * (3 - Math.sqrt(5));
+  for(let i = 0; i < n; i++){
+    const y = 1 - (i / (n - 1)) * 2;
+    const r = Math.sqrt(Math.max(0, 1 - y*y));
+    const th = ga * i;
+    pts.push([Math.cos(th)*r, y, Math.sin(th)*r]);
+  }
+  return pts;
+}
+
+// 【三角面细分 · 2026-11-28 01:38】宝："主要原来那个它是均匀分布的"
+// 之前用 fibSphere 撒点 → 每点一个切平面 → 平面互相切，切出来大的大、小的小。
+// 现在照 ray16 的做法用 icosphere：二十面体细分两次 = 320 个三角形，每个一样大。
+// 取每个三角面的法线 + 质心定出它的平面，喂给半空间求交 → 出来就是均匀刻面。
+function icosphere(subdiv){
+  const t=(1+Math.sqrt(5))/2;
+  let v=[[-1,t,0],[1,t,0],[-1,-t,0],[1,-t,0],
+         [0,-1,t],[0,1,t],[0,-1,-t],[0,1,-t],
+         [t,0,-1],[t,0,1],[-t,0,-1],[-t,0,1]];
+  let f=[[0,11,5],[0,5,1],[0,1,7],[0,7,10],[0,10,11],
+         [1,5,9],[5,11,4],[11,10,2],[10,7,6],[7,1,8],
+         [3,9,4],[3,4,2],[3,2,6],[3,6,8],[3,8,9],
+         [4,9,5],[2,4,11],[6,2,10],[8,6,7],[9,8,1]];
+  v=v.map(p=>{const l=Math.hypot(...p);return p.map(x=>x/l);});
+  for(let s=0;s<subdiv;s++){
+    const nf=[],cache={};
+    const mid=(a,b)=>{
+      const k=a<b?a+'_'+b:b+'_'+a;
+      if(cache[k]!==undefined)return cache[k];
+      const p=[(v[a][0]+v[b][0])/2,(v[a][1]+v[b][1])/2,(v[a][2]+v[b][2])/2];
+      const l=Math.hypot(...p);
+      v.push(p.map(x=>x/l));cache[k]=v.length-1;return cache[k];
+    };
+    for(const [a,b,c] of f){
+      const ab=mid(a,b),bc=mid(b,c),ca=mid(c,a);
+      nf.push([a,ab,ca],[b,bc,ab],[c,ca,bc],[ab,bc,ca]);
+    }
+    f=nf;
+  }
+  return {v,f};
+}
+
+let N = 320;
+let facetData = new Float32Array(MAXF*4);
+
+// 【每块面远近不同 · 2026-11-27 22:45】宝："我不想要那标准石头…谁能拒绝鸽子蛋大的宝石？"
+// 原来所有刻面都是 dot(p,n)=1，离中心一样远 → 切出来是均匀的球（标准）。
+// 给每块一个 0.86~1.06 的半径，块就有大有小、有的凸有的平 —— 像这块料自己的形状。
+// 半径用"低频噪声"打底（成片的凸起/凹陷），再叠一点随机，才像天然，不像乱抖。
+function hash3(x,y,z){
+  let h = Math.sin(x*127.1 + y*311.7 + z*74.7) * 43758.5453;
+  return h - Math.floor(h);
+}
+function vnoise3(x,y,z){
+  // 值噪声（三个方向的线性插值，够用了）
+  const xi=Math.floor(x), yi=Math.floor(y), zi=Math.floor(z);
+  const xf=x-xi, yf=y-yi, zf=z-zi;
+  const sm=(t)=>t*t*(3-2*t);
+  const u=sm(xf), v=sm(yf), w=sm(zf);
+  function L(a,b,t){ return a+(b-a)*t; }
+  const c000=hash3(xi,yi,zi),     c100=hash3(xi+1,yi,zi);
+  const c010=hash3(xi,yi+1,zi),   c110=hash3(xi+1,yi+1,zi);
+  const c001=hash3(xi,yi,zi+1),   c101=hash3(xi+1,yi,zi+1);
+  const c011=hash3(xi,yi+1,zi+1), c111=hash3(xi+1,yi+1,zi+1);
+  return L(L(L(c000,c100,u),L(c010,c110,u),v),
+           L(L(c001,c101,u),L(c011,c111,u),v), w);
+}
+
+let vertTex = null;
+function buildVertTex(){
+  // 【烘顶点 · 2026-11-28 02:49】每个面的 3 个角按顺序排成一张 1 行纹理
+  const _ico = icosphere(2);
+  const w = _ico.f.length * 3;   // 【2026-11-28 03:07】必须等于实际面数*3，否则跟着色器对不上
+  const data = new Uint8Array(w * 4);
+  let k = 0;
+  for(const [ia,ib,ic] of _ico.f){
+    for(const vi of [ia,ib,ic]){
+      const v = _ico.v[vi];
+      data[k*4+0] = Math.round((v[0]*0.5+0.5)*255);
+      data[k*4+1] = Math.round((v[1]*0.5+0.5)*255);
+      data[k*4+2] = Math.round((v[2]*0.5+0.5)*255);
+      data[k*4+3] = 255;
+      k++;
+    }
+  }
+  if(vertTex) gl.deleteTexture(vertTex);
+  vertTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, vertTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+}
+
+function buildFacets(n){
+  // 【改成三角面 · 2026-11-28 01:38】每个三角面 = 一个刻面
+  const _ico = icosphere(2);           // 320 个三角面，大小一致
+  const p = [];
+  for(const [a,b,c] of _ico.f){
+    const A=_ico.v[a], B=_ico.v[b], C=_ico.v[c];
+    const u=[B[0]-A[0],B[1]-A[1],B[2]-A[2]];
+    const w=[C[0]-A[0],C[1]-A[1],C[2]-A[2]];
+    let nn=[u[1]*w[2]-u[2]*w[1], u[2]*w[0]-u[0]*w[2], u[0]*w[1]-u[1]*w[0]];
+    const ln=Math.hypot(...nn)||1; nn=nn.map(x=>x/ln);
+    // 质心：定平面离中心多远（用质心在法线上的投影）
+    const cen=[(A[0]+B[0]+C[0])/3, (A[1]+B[1]+C[1])/3, (A[2]+B[2]+C[2])/3];
+    const dist = nn[0]*cen[0] + nn[1]*cen[1] + nn[2]*cen[2];
+    p.push([nn[0], nn[1], nn[2], dist]);
+  }
+  const total = p.length;
+  facetData = new Float32Array(MAXF*4);
+  for(let i = 0; i < total; i++){
+    const [x,y,z,_dist] = p[i];
+    // 【用三角面自己的距离 · 2026-11-28 01:40】
+    // 之前 r 是另外乱算的（0.90±0.08），把三角面自带的距离丢掉了 ——
+    // 那正是"面有大有小"的一半原因。现在直接用 _dist：每块面就在它该在的位置上。
+    // 只留很轻的一层低频起伏，免得像颗标准球。
+    const lo = vnoise3(x*1.7+11.3, y*1.7+4.1, z*1.7+7.7);
+    const r = _dist * (1.0 + (lo - 0.5) * 0.055);
+
+    // 【法线随机倾斜 · 2026-11-27 23:16】宝："不太行"（里面还是空的）
+    // 原因：形状太接近球 → 光进去几乎笔直穿过 → 打到对面几乎垂直 →
+    // 入射角远小于临界角（1.55 约 40°）→ 每次都直接折出去，一次都弹不起来。
+    // 给每块面一个 ±8° 的随机倾斜：光进去方向就打乱，打对面时入射角能到临界角以上，
+    // 全反射才会真的发生；整颗也会更"原石"，不那么规整。
+    const tiltA = (hash3(x*53.1+1.7, y*71.3+5.2, z*37.9+8.8) - 0.5) * 2.0;  // -1..1
+    const tiltB = (hash3(x*91.7+3.3, y*29.1+7.4, z*61.3+2.5) - 0.5) * 2.0;
+    const TILT = 0.055;   // ≈ 3.2°（原来是 8.3°，太大会把均匀打散）
+    let tx = x + tiltA * TILT, ty = y + tiltB * TILT, tz = z + tiltA * tiltB * TILT;
+    const tl = Math.hypot(tx, ty, tz) || 1;
+    tx /= tl; ty /= tl; tz /= tl;
+
+    facetData[i*4+0] = tx;
+    facetData[i*4+1] = ty;
+    facetData[i*4+2] = tz;
+    facetData[i*4+3] = r;
+  }
+}
+buildFacets(N);
+  buildVertTex();   // 棱线用的顶点表
+
+if(!gl){ fatal('WebGL 没起来。'); }
+else{
+
+const VS = `attribute vec2 aP; void main(){ gl_Position = vec4(aP,0.0,1.0); }`;
+
+const FS = `${_FS_DEFINE}
+precision highp float;
+uniform vec2  uRes;
+uniform float uTime;
+uniform float uBounces;
+uniform float uIor;
+uniform float uDisp;
+uniform float uNFacet;   // 刻面数量（faceVert 要用，所以提到前面）
+uniform float uEdgeCe;   // 棱线强度
+uniform sampler2D uVertTex;   // 每面 3 个顶点方向（烘成一张纹理）
+// 取第 idx 个面的第 k 个角（已经挪到该面所在的平面上）
+// 【2026-11-28 02:52】球面上的顶点半径是 1，而刻面平面在半径 ≈0.94 处 ——
+// 不挪下来的话三点跟交点心不共面，重心坐标全是乱数，整颗就蒙一层白雾。
+vec3 faceVert(float idx, float k, vec3 n, float d){
+  float w = uNFacet * 3.0;
+  float u = (idx * 3.0 + k + 0.5) / w;
+  vec3 v = normalize(texture2D(uVertTex, vec2(u, 0.5)).rgb * 2.0 - 1.0);
+  float dn = dot(v, n);
+  if(abs(dn) < 1e-3) return v * d;
+  return v * (d / dn);   // 沿 v 走到平面上
+}
+float gHitIdx = 0.0;     // 入口面编号（iPoly 顺便带出来的）
+uniform float uExp;
+uniform float uSpin;
+uniform vec4  uFacet[${MAXF}];
+
+// 【旋转 · 2026-11-27 22:11 / 位置修正 22:15】必须定义在所有调用者之前，
+// 否则报 no matching overloaded function found。
+mat3 rotY(float a){
+  float c = cos(a), s = sin(a);
+  return mat3(c, 0.0, -s,  0.0, 1.0, 0.0,  s, 0.0, c);
+}
+
+// ---------- 椭球：||p|| = 1 ----------
+vec2 iSphere(vec3 ro, vec3 rd){
+  float b = dot(ro, rd);
+  float c = dot(ro, ro) - 1.0;
+  float h = b*b - c;
+  if(h < 0.0) return vec2(-1.0);
+  h = sqrt(h);
+  return vec2(-b - h, -b + h);
+}
+
+// 【多面体求交 · 2026-11-27 22:36】宝："还是先修形状"
+// 现在的问题是"球面上贴了一层平面" —— 求交用球，法线用刻面，所以每块刻面在弯球面上鼓出来。
+// 真宝石是一整块多面体：每个刻面是一个平面 dot(p, n)=1，所有平面围出的交集就是它。
+// 求法 = 半空间求交（射线对每个平面算一个 t，入口取最大、出口取最小），一次过，不用步进。
+// 副产品：决定入口的那个平面，它的法线就是这一点的法线 —— 不用再另外找。
+vec2 iPoly(vec3 ro, vec3 rd, out vec3 nHit){
+  float tE = -1e9;
+  float tX =  1e9;
+  vec3 bestN = vec3(0.0, 1.0, 0.0);
+  gHitIdx = 0.0;                       // 【棱线 · 2026-11-28 02:48】带出入口面的编号
+  for(int i=0;i<${MAXF};i++){
+    if(float(i) >= uNFacet) break;
+    vec4 f = uFacet[i];
+    vec3 nn = f.xyz;
+    float rr = f.w;                 // 这个面离中心多远（每块不一样 → 块大小不均）
+    float den = dot(rd, nn);
+    if(abs(den) < 1e-6) continue;
+    float t = (rr - dot(ro, nn)) / den;
+    if(den > 0.0){
+      if(t < tX) tX = t;          // 出口：取最小
+    }else{
+      if(t > tE){ tE = t; bestN = nn; gHitIdx = float(i); }   // 入口：取最大，记下是哪个平面
+    }
+  }
+  nHit = bestN;
+  if(tE > tX) return vec2(-1.0);
+  return vec2(tE, tX);
+}
+
+// ---------- 最近刻面 → 用那个中心当平面法线 ----------
+// 【查表 · 2026-11-27 22:22】320 个面挨个点积太贵（80fps→30fps）。
+// 改成：开跑前离屏烘焙一张"方向 → 最近刻面法线"的等距柱状图，
+// 每帧只查一次纹理，320 次点积变成 1 次采样。
+uniform sampler2D uFacetMap;
+vec3 facetNormal(vec3 p){
+  vec3 np = normalize(p);
+  vec3 lp = rotY(-uSpin) * np;                       // 转到刻面的局部空间
+  float phi   = atan(lp.z, lp.x);                    // -PI..PI
+  float theta = acos(clamp(lp.y, -1.0, 1.0));        // 0..PI
+  vec2 uv = vec2(phi / 6.28318530718 + 0.5,
+                 theta / 3.14159265359);
+  vec3 n = texture2D(uFacetMap, uv).rgb * 2.0 - 1.0; // 存的是 (n*0.5+0.5)
+  return normalize(rotY(uSpin) * n);                 // 法线转回世界
+}
+
+float hash21(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+float noise2(vec2 p){
+  vec2 i = floor(p), f = fract(p);
+  f = f*f*(3.0-2.0*f);
+  return mix(mix(hash21(i), hash21(i+vec2(1,0)), f.x),
+             mix(hash21(i+vec2(0,1)), hash21(i+vec2(1,1)), f.x), f.y);
+}
+// 【环境跟着转 · 2026-11-27 22:13】宝："光影和球本身反着转"
+// 【有结构的环境 · 2026-11-27 22:50】原来环境是柔光渐变 + 噪声，
+// 折射把它扭了也看不出来（扭一片糊的，还是糊的）。
+// 换成"有硬边的东西"：几道亮带、几个光斑、一条地平线 ——
+// 光在里面折两下，这些结构就碎成一片片，那才是宝石里那种"后面的零碎"。
+// 【硬边光板 · 只给表面反射用 · 2026-11-28 15:4x】宝："内部的白只能是带色的亮，纯白只在表面"
+// 上一版把光板画在 env() 里 → 内壁采样也采到了 → 内部冒出一块块白斑。
+// 现在拎成独立函数，只有「表面反射」那一步调用它；内壁 / 透射拿不到。
+float hardBox(float v, float c, float hw){
+  // 【羽化 0.010→0.030 · 2026-11-28 15:5x】宝："闪的会很生硬"—— 一块面要么全亮要么全不亮，面与面之间一道硬坎
+  return smoothstep(hw, hw - 0.030, abs(v - c));
+}
+// 【两套颜色 · 2026-11-28 15:5x】whiten=1 → 白（只给表面反射，光没进宝石，不吸收）
+//                            whiten=0 → 带紫的亮（给内部，光走过一段被吸收过）
+vec3 panelLight(vec3 dd, float whiten){
+  // 【分散布局 · 2026-11-28 15:5x】宝："只闪中间，不闪边上"+"生硬"
+  // 原来五块板全堆在后方（az≈1.2~2.7）→ 只有中间朝观察者的面能反到它们，边上的面反到的是空的。
+  // 现在散到九个方位（前/后/左/右/上/下/斜），羽化从 0.010 放大到 0.030（面与面之间有过渡，不再一刀切）。
+  float azA = atan(dd.z, dd.x);
+  float elA = asin(clamp(dd.y, -1.0, 1.0));
+  vec3 add = vec3(0.0);
+  float pi = 3.14159265;
+
+  // ---- 后半球（原来那几块，保留但收窄）----
+  vec3 wBack = mix(vec3(0.74, 0.34, 1.05) * 0.92, vec3(1.0), whiten);
+  add += vec3(1.00, 0.95, 0.88) * wBack * hardBox(azA, 1.22, 0.10) * hardBox(elA,  0.44, 0.085) * 4.2;
+  add += vec3(0.55, 0.45, 1.00) * wBack * hardBox(azA, 2.06, 0.08) * hardBox(elA, -0.16, 0.070) * 2.0;
+  add += vec3(1.00, 0.78, 0.98) * wBack * hardBox(azA, 1.57, 0.11) * hardBox(elA,  0.06, 0.090) * 3.2;
+
+  // ---- 前半球（边上的面反的是这一带）----
+  vec3 wFront = mix(vec3(0.80, 0.44, 1.02) * 0.92, vec3(1.0), whiten);
+  add += vec3(0.82, 0.90, 1.00) * wFront * hardBox(azA,  0.18, 0.09) * hardBox(elA,  0.52, 0.080) * 3.6;
+  add += vec3(1.00, 0.82, 0.72) * wFront * hardBox(azA, -0.55, 0.085)* hardBox(elA, -0.28, 0.075) * 2.8;
+  add += vec3(0.95, 0.95, 1.00) * wFront * hardBox(azA, -1.35, 0.075)* hardBox(elA,  0.30, 0.070) * 3.4;
+
+  // ---- 左右两侧 ----
+  vec3 wSide = mix(vec3(0.86, 0.40, 1.00) * 0.92, vec3(1.0), whiten);
+  add += vec3(1.00, 0.90, 0.82) * wSide * hardBox(azA,  2.85, 0.085) * hardBox(elA,  0.10, 0.085) * 3.0;
+  add += vec3(0.70, 0.78, 1.00) * wSide * hardBox(azA, -2.40, 0.080) * hardBox(elA, -0.05, 0.080) * 2.6;
+
+  // ---- 顶 / 底 ----
+  vec3 wTop = mix(vec3(0.90, 0.50, 1.00) * 0.92, vec3(1.0), whiten);
+  add += vec3(1.00, 0.96, 0.90) * wTop * hardBox(elA,  1.05, 0.10) * 3.2;   // 正上方（整圈方位都算）
+  add += vec3(0.62, 0.52, 1.00) * wTop * hardBox(elA, -1.05, 0.09) * 2.2;   // 正下方
+
+  // 羽化加大：hardBox 里从 0.010 换成 0.030 由下面的 hardBox 定义控制
+  return add;
+}
+
+vec3 env(vec3 d){
+  // 【光固定 · 2026-11-27 23:44】宝："你先让光固定住吧"
+  // 之前这里有一句 d = rotY(uSpin) * d，把环境也绑在宝石的旋转上 → 看着是光在动。
+  // 现在去掉：环境钉死，只有宝石转。这样表面每一块的反光才会随转动变化。
+  // d = rotY(uSpin) * d;
+  float h = d.y;
+
+  // 【环境拉出真明暗 · 2026-11-28 00:13】宝："先拉一下明暗跨度和高光"
+  // 参考图里最亮的接近纯白、最暗的接近黑，而咱们全挤在中间调上，所以看着平。
+  // 把底压到很暗，再给一个极亮的小光斑 —— 跨度拉开了，宝石才有"透"和"沉"之分。
+  vec3 sky = vec3(0.022, 0.016, 0.070);     // 快黑的底
+  vec3 mid = vec3(0.170, 0.105, 0.430);
+  vec3 hi  = vec3(0.80, 0.70, 1.00);
+  vec3 col = mix(sky, mid, smoothstep(-0.80, 0.05, h));
+  col = mix(col, hi, smoothstep(0.42, 0.98, h));
+
+  // 主亮点（很小、很亮，接近纯白）—— 它就是"最亮那一档"的来源
+  float key = smoothstep(0.16, 0.005, length(d - normalize(vec3(-0.42, 0.66, 0.62))));
+  col += vec3(1.00, 0.98, 0.94) * key * 2.6;
+
+  // 副光斑（大一点、柔和）
+  float fill = smoothstep(0.34, 0.02, length(d - normalize(vec3(0.70, 0.20, -0.68))));
+  col += vec3(0.55, 0.45, 0.85) * fill * 0.55;
+
+  // 几道很弱的方向光（保留一点结构，但不再抢戏）
+  float az = atan(d.z, d.x);
+  float band = 0.0;
+  band += smoothstep(0.026, 0.0, abs(sin(az - 0.4)));
+  band += smoothstep(0.020, 0.0, abs(sin(az - 1.9))) * 0.7;
+  band *= smoothstep(-0.8, 0.1, h);
+  col += vec3(0.80, 0.78, 1.0) * band * 0.22;
+
+  float n = noise2(d.xz*2.6 + d.y*1.9);
+  col += vec3(0.10, 0.08, 0.22) * pow(n, 4.0) * 0.35;
+
+  // 【背光 · 2026-11-28 00:48】宝："我感觉他还是好暗，不知道问题出在哪里"
+  // 中间那几片刻面朝着观察者，反射的是"观察者背后"—— 那里空的，所以中间闷。
+  // 真宝石的中间亮度来自"透射"：光从背后穿过来。所以在 +z（相机对面）放一块柔光。
+  float backK = smoothstep(0.30, 0.96, normalize(d).z);
+  // 【背光改带色 · 2026-11-28 15:4x】宝："背面那一大块白，攻击力有点强"
+  // 它给的是白光，还是一整块。改成带紫的暗光：强度砍到三分之一，颜色偏紫罗兰。
+  col += vec3(0.48, 0.24, 0.82) * backK * 0.50;
+
+  // 【硬边光板 · 2026-11-28 15:0x】宝："后面没有光的反射，导致颜色都很均匀，没有突然的跳变"
+  // 原环境全是平滑渐变（sky/mid/hi 三段 + 圆形柔光斑），所以不管面朝哪，采到的颜色都差不多 → 均匀。
+  // 加三块"边缘硬"的矩形光板：面反到它 = 纯亮，反不到 = 纯暗，中间几乎没有过渡 —— 跳变就是这么来的。
+  // 方位：az=0 是 +x（右），az=1.57 是 +z（相机对面=后方），az=3.14 是 -x（左）
+  float azA = atan(d.z, d.x);
+  float elA = asin(clamp(d.y, -1.0, 1.0));
+  #define HARDBOX(v, c, hw) smoothstep(hw, hw - 0.010, abs((v) - (c)))
+
+  // 【改窄 · 2026-11-28 15:1x】上一版板太宽（每块占 1/3 天空）→ 面反到就是一整片同色 → 拼贴感。
+  // 真宝石的闪是"稀疏"的：少数几块面接近纯白，其余暗下去。所以把板收成窄条、强度提上去，
+  // 并且改成直接相加（不 mix），这样只有真反到的那几块会爆白，其余保持原来的暗。
+
+  return col;
+}
+
+vec3 refrDir(vec3 d, vec3 n, float eta){
+  vec3 r = refract(d, n, eta);
+  if(dot(r,r) < 1e-6) r = reflect(d, n);
+  return normalize(r);
+}
+
+// 【内部感 · 2026-11-27 22:08】原来每跳固定乘 0.88，跟路径长短无关 ——
+// 所以不管光在里面走了多远，都是一个亮度，看着像"涂色的多面体"。
+// 改成按每一段的实际长度算吸收（Beer-Lambert 的简化），厚的地方才真正沉下去。
+// 【内部反射 · 2026-11-27 23:01】宝："还是不行，只有表面的"
+// 根因：原来的循环第一跳从外面进（取 h.x），后面几跳却一直取 h.y（出口），
+// 而且法线被统一翻成"背对光"，于是每一跳都按"从外进入"算 —— 光进去一次就走了，
+// 从来没在内壁上弹过，所以里面是空的，只有表面一层。
+// 正确做法：明确区分"在外面 / 在里面"。
+//   在外面 → 打到外壁，用朝外的法线折射进去；
+//   在里面 → 打到内壁，用朝内的法线试折射出去（过临界角就全反射，继续弹）。
+vec3 traceOne(vec3 ro, vec3 rd, float ior){
+  vec3 p = ro;
+  vec3 d = rd;
+  float k = 1.0;
+  float total = 0.0;
+  bool inside = false;
+  vec3 wallN = vec3(0.0);        // 最后撞到的内壁法线（朝外）
+  vec3 wallAcc = vec3(0.0);      // 【累加】里面一路撞过的所有墙
+  float wallW  = 0.0;
+
+  // 【内部散射 · 2026-11-28 01:00】宝："把你做的宝石里面不做外面的散射吗？"
+  // 之前里面只有"撞到墙有多亮"，一块块是硬的，没有雾一样的泛光。
+  // 真宝石里，光进来之后会在内部散开，把整个里面泡亮。这里沿着光路沿途累加一点环境色。
+  vec3 scatter = vec3(0.0);
+
+  for(int i=0;i<8;i++){
+    if(float(i) >= uBounces) break;
+
+    vec3 nHit;
+    vec2 h = iPoly(p, d, nHit);
+    if(h.y < 0.0) break;
+
+    if(!inside){
+      float t = h.x;
+      if(t < 0.0) break;
+      total += t;
+      p = p + d * t;
+      vec3 n = normalize(nHit);
+      if(dot(d, n) > 0.0) n = -n;
+      d = refrDir(d, n, 1.0 / ior);
+      inside = true;
+      p = p + d * 0.003;
+    }else{
+      float t = h.y;
+      if(t < 0.0) break;
+      total += t;
+      p = p + d * t;
+      wallN = normalize(nHit);          // 记下这堵墙朝外的方向
+      // 【累加每一堵撞过的墙 · 2026-11-27 23:33】宝："你这个物体它有背面吗？"
+      // 原来只画最后撞到的那一面，前面撞过的墙全丢了 —— 所以里面是空的。
+      // 现在每撞一堵就记一笔（按它朝外的方向算这堵墙整体多亮），近亮远暗。
+      vec3 wn0 = wallN;
+      float fac = clamp(abs(dot(wn0, d)), 0.0, 1.0);
+      // 【每步只调一次 env · 2026-11-28 01:45】宝："没区别，好像还更低了"
+      // 原来这一步调了两次 env()（墙的亮度一次、散射一次），而 env 里有噪声和循环，
+      // 5 跳就是 10 次/像素 —— 这才是掉到 21 帧的真凶，不是跳数。
+      // 现在算一次、两处共用。顺带把散射那次的 normalize 也算省了。
+      // 【内部碎光 · 2026-11-28 15:5x】宝："加一点里面的碎光不？"
+      // 内壁原来只采 env()（一片平滑渐变），所以里面永远是一团均匀的紫。
+      // 把"紫版光板"也加进来：内壁朝向哪块板，那一块就亮 —— 亮的是面，不是像素，所以才有碎钻感。
+      vec3 wnR = rotY(uSpin) * wn0;
+      vec3 eW = env(wnR) + panelLight(wnR, 0.0) * 0.85;
+      wallAcc += eW * (0.30 + 0.70 * fac) * (1.0 - wallW * 0.35);
+      wallW  += 1.0;
+      scatter += eW * 0.055;
+      vec3 n = -wallN;
+      vec3 outDir = refract(d, n, ior);
+      float cosI = abs(dot(d, n));            // 入射角余弦
+      // 【强制弹两下 · 2026-11-27 23:36】宝："跟上一回一点差距都没有"
+      // 上一版"累加一路撞过的墙"实际只加到一面 —— 因为光一进去就正对着对面打，
+      // 入射角太小，第一次撞墙就穿出去了，压根没弹。
+      // 真宝石是靠亭部（底下那个锥）的角度保证全反射的；猫这里没有那层结构，
+      // 就手动让前两次撞墙强制反射（等价于亭部把光弹回来），之后才允许穿出去。
+      if(wallW < 2.0 || dot(outDir, outDir) < 1e-6 || cosI < 0.906){
+        d = reflect(d, n);
+        k *= 0.96;
+      }else{
+        d = normalize(outDir);
+        inside = false;
+      }
+      p = p + d * 0.003;
+    }
+  }
+
+  // 【看到内壁 · 2026-11-27 23:23】宝："碎是光在内部折射之后，通过前面不同角度的镜面看进去"
+  // 之前只算"穿出去看到的环境"，等于每块窗口都直接看外面的天，一片平。
+  // 补一份"内壁自身被照亮的样子"：用内壁朝外的方向去采环境（它是一块朝外翻的镜面），
+  // 每块前面刻面透过去看到的是不同的内壁位置 → 亮度不同 → 才有碎。
+  // 【内壁当主体 · 2026-11-27 23:26】宝："你宝石只刻前面是不是也太偷懒了"
+  // 之前最后一步是"穿出去看外面的天"，内壁那层被跳过了。
+  // 现在反过来：最后撞到的那块内壁占大头（它的朝向整块算一次 → 一块一个亮度，
+  // 才有刻面的边界感），穿出去看到的天只留一点点点缀。
+  vec3 outc = env(rotY(uSpin) * d) * k;
+  if(wallW > 0.5){
+    // 一路撞过的墙全叠上来（不是只留最后一面）
+    vec3 wl = wallAcc / max(wallW, 1.0);
+    // 【黑白块加过渡 · 2026-11-27 23:52】宝："那些黑的白的块"
+    // 内壁每块面一个亮度、面内均匀，只有"亮"和"暗"两档，看着就是一块一块贴上去的。
+    // 压一下亮部（pow 0.85 抬暗部）、再收一点对比，让它们之间有过渡。
+    wl = pow(max(wl, vec3(0.001)), vec3(0.78));
+    // 【内壁的亮必须带色 · 2026-11-28 15:4x】宝："光照到内部会被吸收，整体颜色偏向宝石本身的偏色，而不是纯白"
+    // 原来：×1.55 过曝 + mix(灰度, 0.18) 去饱和 → 紫掺灰 = 看着发绿的白块。
+    // 现在：不过曝（1.05）、不去饱和，并乘一层「吸收谱」（紫水晶吃绿黄、留红蓝），亮的天然是紫的。
+    // 【只换色相不掉亮度 · 2026-11-28 15:4x】上一版乘了吸收谱之后整体变暗（绿红都减了）。
+    // 这里先记住乘之前的亮度，乘完再按比例补回来 —— 颜色变紫，亮度不动。
+    wl *= vec3(0.78, 0.40, 1.00) * 1.15;   // 吸收谱 + 整体提一点，不做归一放大（那会推爆成白）
+    outc = mix(outc, wl * k * 1.05, 0.93);
+  }
+  outc += scatter * 0.9;                 // 内部泛光
+  if(inside) outc *= 0.70;
+  outc *= exp(-total * 0.032);
+
+  // 【紫色按亮度偏色 · 2026-11-28 00:13】宝取了五个色号：H 251(暗蓝紫) → 290(亮品红)
+  // 参考图的紫不是一个色，是"暗处偏蓝紫、亮处偏品红"。这里按亮度把色相往两头推。
+  float lum = clamp(dot(outc, vec3(0.33)), 0.0, 1.4);
+  vec3 cDark = vec3(0.055, 0.030, 0.230);   // 暗：蓝紫（H≈251）
+  vec3 cMid  = vec3(0.300, 0.120, 0.720);   // 中：正紫（H≈272）
+  // 【亮部改紫罗兰 · 2026-11-28 15:4x】宝："我想要那个紫罗兰的紫色"
+  // 原 H≈290 偏品红，看着发粉；拉到 H≈272（紫罗兰），红压下来、蓝提上去。
+  vec3 cLite = vec3(0.560, 0.220, 0.980);   // 亮：紫罗兰（H≈272）
+  vec3 tint;
+  if(lum < 0.35){
+    tint = mix(cDark, cMid, smoothstep(0.0, 0.35, lum));
+  }else{
+    tint = mix(cMid, cLite, smoothstep(0.35, 1.05, lum));
+  }
+  // 用"色相"替换：保留原来的明暗结构，只把颜色推到这几个紫上
+  vec3 tintN = tint / max(max(tint.r, max(tint.g, tint.b)), 0.001);
+  outc = tintN * lum * 1.15;
+
+  return outc;
+}
+
+void main(){
+  vec2 uv = (gl_FragCoord.xy - 0.5*uRes) / min(uRes.x, uRes.y);
+  // 【蛋形 · 2026-11-27 22:46】鸽子蛋 = 竖着长一点。求交前把射线在 y 上压一下，
+  // 相当于把整个形状在 y 方向拉长（1/0.82 ≈ 1.22 倍高）。
+  vec3 ro = vec3(0.0, 0.0, -3.05);
+  vec3 rd = normalize(vec3(uv, 1.0));
+  ro.y *= 0.82; rd.y *= 0.82;
+
+  // 【让宝石转起来 · 2026-11-27 23:46】宝："那个宝石好像是死的，自动转也转不动"
+  // 原因：旋转原来只加在 facetNormal() 里，可 v9 改成多面体求交之后，那个函数就再没被调过 ——
+  // uSpin 每帧都在更新，但没有任何地方用它，所以整颗是死的。
+  // 现在把射线反向转进"刻面的局部空间"，宝石就真的转；环境不转（光固定）。
+  ro = rotY(-uSpin) * ro;
+  rd = rotY(-uSpin) * rd;
+
+  // 【做环境 · 2026-11-28 00:29】宝："宝石它不是镜子啊，宝石里面是亮的，镜子里面黑的"
+  // 之前背景是一块纯色，等于没有房间 —— 宝石外面什么都没有，看着就像一瓶不透的玻璃。
+  // 现在铺一个暗房间：上面深、下面是一块微微反光的台面，再撒几个远端的小光源。
+  // 这样宝石有"在哪"可说，透出来的光才有对比。
+  vec3 rdW = rotY(uSpin) * normalize(vec3(uv, 1.0));   // 世界方向（跟宝石的转无关）
+  vec3 bgTop = vec3(0.012, 0.010, 0.026);
+  vec3 bgBot = vec3(0.060, 0.048, 0.105);
+  float vy = uv.y;
+  vec3 bg = mix(bgBot, bgTop, smoothstep(-0.55, 0.85, vy));
+  // 台面（下部一块稍亮的横向带，像浅色绒布被光照到）
+  float table = smoothstep(-0.62, -0.95, vy);
+  bg += vec3(0.14, 0.115, 0.20) * table * 0.9;
+  // 远端小光源（背景里能看见的几个点，很小）
+  float bgl = 0.0;
+  bgl += smoothstep(0.055, 0.0, length(uv - vec2(-0.62, 0.42))) * 1.0;
+  bgl += smoothstep(0.042, 0.0, length(uv - vec2( 0.74, 0.16))) * 0.7;
+  bgl += smoothstep(0.030, 0.0, length(uv - vec2( 0.30,-0.72))) * 0.55;
+  bg += vec3(0.42, 0.38, 0.62) * bgl;
+  vec3 col = bg;
+
+  vec3 nSurf;
+  vec2 h = iPoly(ro, rd, nSurf);
+
+  // 【棱线 · 2026-11-28 02:36】宝："你看我最开始刷到的，和我们最后做出来的"
+  // 参考图每个面的边上有一条清晰的亮线 —— 那是刻面自己的边。
+  // 我们之前面跟面糊在一起，因为只有"颜色不同"，没有"界线"。
+  // 用导数找法线突变的地方：面内法线不变（导数≈0），跨过棱线就跳变 → 那就是边。
+  // 【棱线 v5 · 2026-11-28 03:12】宝："做这种边边的东西就开始搞抽象，真的好丑"
+  // 白线那条路是错的：真宝石的棱不是"画了一条线"，是两块面之间亮度在那儿断了一下。
+  // 画实白线必然像贴胶带（v55 就是那样）。
+  // 改成：每个面按自己的编号取一个固定亮度偏移 —— 相邻面一亮一暗，边自己就出来了。
+  float _fid = gHitIdx;   // 立刻存下来（traceOne 里还会再调 iPoly，会把它覆盖）
+  if(h.y > 0.0){
+    // 【省算力 · 2026-11-28 01:28】宝："不能直接在现在的基础上多加几面吗？"
+    // 色散关掉时，原来还是跑三次一模一样的光路（红绿蓝），等于 2/3 算力白烧。
+    // 现在只有色散真开着才走三遍 —— 省下来的正好拿去换面数。
+    vec3 through;
+    if(uDisp > 0.0001){
+      vec3 cR = traceOne(ro, rd, uIor*(1.0 - uDisp));
+      vec3 cG = traceOne(ro, rd, uIor);
+      vec3 cB = traceOne(ro, rd, uIor*(1.0 + uDisp));
+      through = vec3(cR.r, cG.g, cB.b);
+    }else{
+      through = traceOne(ro, rd, uIor);
+    }
+
+    vec3 p0 = ro + rd * h.x;
+    vec3 n0 = normalize(nSurf);
+    if(dot(rd, n0) > 0.0) n0 = -n0;
+    float f0 = pow(1.0 - clamp(dot(-rd, n0), 0.0, 1.0), 5.0);
+    float F = 0.045 + 0.955 * f0;
+    vec3 refl = env(reflect(rd, n0)) + panelLight(reflect(rd, n0), 1.0);
+
+    col = mix(through, refl, F);
+
+    // 【闪 · 2026-11-28 00:36】宝："其实我觉得挺透的，但是不太闪"
+    // 闪 = 某一块刻面的反射方向正好对准一个极小的光源 → 那一下白得刺眼，
+    // 转过去就没了。所以不是"铺一层白点"，是"几个极小的方向 + 极高的幂次"。
+    // 【片状的闪 · 2026-11-28 00:39】宝："宝石的闪是片状的，你给他一个圆的啥意思？"
+    // 上一版用 pow(dot(refl,L), 1400) —— 圆对称，出来必然是个圆形灯泡。
+    // 真宝石的刻面是平的，它反射进去的是一整块"面光源"（柔光箱那种硬边亮片）：
+    // 反射方向落在亮片里 → 整块刻面一起亮，边缘就是刻面自己的多边形边；落在外 → 不亮。
+    // 所以要用"矩形范围判断"，不能用幂次。
+    vec3 rf = reflect(rd, n0);
+    float sp = 0.0;
+    // 三块虚拟柔光箱，各自朝向不同
+    vec3 Ls[3];
+    Ls[0] = normalize(vec3(-0.42,  0.74,  0.52));
+    Ls[1] = normalize(vec3( 0.80,  0.26,  0.54));
+    Ls[2] = normalize(vec3( 0.06, -0.58,  0.81));
+    float halfW[3]; float halfH[3]; float pw[3];
+    halfW[0]=0.34; halfH[0]=0.15; pw[0]=1.00;
+    halfW[1]=0.22; halfH[1]=0.30; pw[1]=0.85;
+    halfW[2]=0.28; halfH[2]=0.10; pw[2]=0.75;
+    for(int i=0;i<3;i++){
+      vec3 L = Ls[i];
+      vec3 up0 = abs(L.y) > 0.95 ? vec3(0.0,0.0,1.0) : vec3(0.0,1.0,0.0);
+      vec3 rt = normalize(cross(up0, L));
+      vec3 up = cross(L, rt);
+      float cz = dot(rf, L);
+      if(cz > 0.0){
+        float cx = dot(rf, rt) / max(cz, 0.2);
+        float cy = dot(rf, up) / max(cz, 0.2);
+        // 硬边（只留一点点软过渡，免得刻面边上锯齿）
+        // 【边做软 · 2026-11-28 00:42】宝："这个光很假"
+        // 之前硬边 → 一整块刻面顶到纯白，像贴白纸。改成宽的过渡：中心最亮、往边上淡。
+        float inX = smoothstep(halfW[i], halfW[i]*0.35, abs(cx));
+        float inY = smoothstep(halfH[i], halfH[i]*0.30, abs(cy));
+        sp += inX * inY * pw[i];
+      }
+    }
+    col += vec3(1.00, 0.90, 0.98) * sp * 0.72;   // 掺一点紫，别是死白
+
+    col *= uExp;
+  }
+
+  col = col / (1.0 + max(col - vec3(0.85), vec3(0.0)) * 1.4);
+  col = pow(max(col, vec3(0.0)), vec3(0.92));
+  // 面对比：0 = 每块面一样亮（糊成一片）；1 = 相邻面明暗差到能看出棱
+  float _tone = 0.80 + 0.38 * hash21(vec2(_fid, 7.31));
+  col *= mix(1.0, _tone, clamp(uEdgeCe, 0.0, 1.0));
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+function compile(type, src){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){
+    fatal('着色器编译失败：\n' + gl.getShaderInfoLog(s));
+    return null;
+  }
+  return s;
+}
+
+// ===== 烘焙：方向 → 最近刻面法线（只跑一次）=====
+const BAKE_FS = `
+precision highp float;
+uniform vec2  uRes;
+uniform float uNFacet;
+uniform vec4  uFacet[${MAXF}];
+const float PI  = 3.14159265359;
+const float TAU = 6.28318530718;
+void main(){
+  vec2 uv = gl_FragCoord.xy / uRes;
+  float phi   = (uv.x - 0.5) * TAU;
+  float theta = uv.y * PI;
+  vec3 d = vec3(sin(theta)*cos(phi), cos(theta), sin(theta)*sin(phi));
+  float best = -2.0;
+  vec3 bestC = uFacet[0].xyz;
+  for(int i=0;i<${MAXF};i++){
+    if(float(i) >= uNFacet) break;
+    vec3 f = uFacet[i].xyz;
+    float dd = dot(d, f);
+    if(dd > best){ best = dd; bestC = f; }
+  }
+  gl_FragColor = vec4(normalize(bestC) * 0.5 + 0.5, 1.0);
+}
+`;
+
+const vs = compile(gl.VERTEX_SHADER, VS);
+const fs = compile(gl.FRAGMENT_SHADER, FS);
+if(vs && fs){
+  const pr = gl.createProgram();
+  gl.attachShader(pr, vs); gl.attachShader(pr, fs);
+  gl.linkProgram(pr);
+  if(!gl.getProgramParameter(pr, gl.LINK_STATUS)){
+    fatal('链接失败：\n' + gl.getProgramInfoLog(pr));
+  }else{
+    gl.useProgram(pr);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+    const aP = gl.getAttribLocation(pr, 'aP');
+    gl.enableVertexAttribArray(aP);
+    gl.vertexAttribPointer(aP, 2, gl.FLOAT, false, 0, 0);
+
+    const U = {
+      res: gl.getUniformLocation(pr,'uRes'),
+      time: gl.getUniformLocation(pr,'uTime'),
+      bounces: gl.getUniformLocation(pr,'uBounces'),
+      ior: gl.getUniformLocation(pr,'uIor'),
+      disp: gl.getUniformLocation(pr,'uDisp'),
+      edgeCe: gl.getUniformLocation(pr,'uEdgeCe'),
+      exp: gl.getUniformLocation(pr,'uExp'),
+      nf: gl.getUniformLocation(pr,'uNFacet'),
+      spin: gl.getUniformLocation(pr,'uSpin'),
+      facet: gl.getUniformLocation(pr,'uFacet[0]'),
+      facetMap: gl.getUniformLocation(pr,'uFacetMap'),
+      vertTex: gl.getUniformLocation(pr,'uVertTex'),
+    };
+
+    const P = { bounces:5, ior:1.55, disp:0.0, exp:3.1, n:N };
+    window.CE = window.CE === undefined ? 0.45 : window.CE;
+
+    function resize(){
+      const d = Math.min(window.devicePixelRatio || 1, 2);
+      cv.width  = Math.max(1, Math.floor(cv.clientWidth  * d));
+      cv.height = Math.max(1, Math.floor(cv.clientHeight * d));
+      gl.viewport(0,0,cv.width,cv.height);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // ===== 执行烘焙 =====
+    let facetTex = null;
+    (function bake(){
+      const bvs = compile(gl.VERTEX_SHADER, VS);
+      const bfs = compile(gl.FRAGMENT_SHADER, BAKE_FS);
+      if(!bvs || !bfs) return;
+      const bp = gl.createProgram();
+      gl.attachShader(bp, bvs); gl.attachShader(bp, bfs);
+      gl.linkProgram(bp);
+      if(!gl.getProgramParameter(bp, gl.LINK_STATUS)){
+        fatal('烘焙程序链接失败：\n' + gl.getProgramInfoLog(bp));
+        return;
+      }
+      const BW = 1024, BH = 512;
+      const tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, BW, BH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+      const fb = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+      if(gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE){
+        fatal('烘焙用的 framebuffer 建不起来。'); return;
+      }
+      gl.viewport(0,0,BW,BH);
+      gl.useProgram(bp);
+      gl.uniform2f(gl.getUniformLocation(bp,'uRes'), BW, BH);
+      gl.uniform1f(gl.getUniformLocation(bp,'uNFacet'), P.n);
+      const fl = gl.getUniformLocation(bp,'uFacet[0]');
+      if(fl) gl.uniform4fv(fl, facetData);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.deleteFramebuffer(fb);
+      facetTex = tex;
+      // 【恢复状态 · 2026-11-27 22:31】上一版忘了这三步 → 主绘制还在用烘焙程序 + 1024x512 的视口，
+      // 屏幕上是把法线图直接怼出来了（一串彩色网格，90 帧但不是宝石）。
+      gl.useProgram(pr);
+      gl.viewport(0, 0, cv.width, cv.height);
+      gl.enableVertexAttribArray(aP);
+      gl.vertexAttribPointer(aP, 2, gl.FLOAT, false, 0, 0);
+      console.log('[bake] facet map ready', BW+'x'+BH, 'faces='+P.n);
+    })();
+
+    const fpsEl = document.getElementById('fps');
+    let frames = 0, last = performance.now();
+
+    function draw(t){
+      gl.uniform2f(U.res, cv.width, cv.height);
+      gl.uniform1f(U.time, t*0.001);
+      gl.uniform1f(U.bounces, P.bounces);
+      gl.uniform1f(U.ior, P.ior);
+      gl.uniform1f(U.disp, P.disp);
+      // webgl1 没有 fwidth → 棱线算不出来，传 0 关掉（至少别黑屏）
+      gl.uniform1f(U.edgeCe, _isGL2 ? (window.CE === undefined ? 0.45 : window.CE) : 0.0);
+      gl.uniform1f(U.exp, P.exp);
+      gl.uniform1f(U.nf, P.n);
+      gl.uniform1f(U.spin, t * 0.00035);   // 约 18 秒一圈
+      // 求交要用刻面表（多面体），所以又得每帧传一次了
+      if(U.facet) gl.uniform4fv(U.facet, facetData);
+      if(facetTex && U.facetMap){
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, facetTex);
+        gl.uniform1i(U.facetMap, 1);
+      }
+      // 【顶点纹理 · 2026-11-28 02:50】棱线要拿每块面的三个角
+      if(vertTex && U.vertTex){
+        gl.activeTexture(gl.TEXTURE2);
+        gl.bindTexture(gl.TEXTURE_2D, vertTex);
+        gl.uniform1i(U.vertTex, 2);
+      }
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+      frames++;
+      const now = performance.now();
+      if(now - last > 500){
+        fpsEl.textContent = Math.round(frames*1000/(now-last)) + ' fps';
+        frames = 0; last = now;
+      }
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+  }
+}
+}
+
+// 【滑杆 · 2026-11-28 02:36】宝："那能给个滑杆吗？"
+(function(){
+  const el = document.getElementById('s_ce');
+  const lb = document.getElementById('v_ce');
+  if(!el) return;
+  const sync = ()=>{ window.CE = parseFloat(el.value); lb.textContent = window.CE.toFixed(2); };
+  el.addEventListener('input', sync);
+  sync();
+})();
+</script>
+</body>
+</html>
